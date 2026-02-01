@@ -7,6 +7,7 @@
 #include "AEEngine.h"
 #include <stdio.h>
 #include <time.h>
+#include "shop.hpp"
 
 // ---------------------------------------------------------------------------
 // CONFIGURATION
@@ -69,25 +70,25 @@ float shop_trigger_x = 325.0f;
 float shop_trigger_y = -2675.0f;
 float shop_trigger_width = 150.0f;
 float shop_trigger_height = 150.0f;
-
-// Shop popup dimensions
-float shop_popup_width = 1400.0f;
-float shop_popup_height = 800.0f;  // Increased for title
-
-// Shop upgrade boxes (4 boxes)
-float upgrade_box_width = 180.0f;
-float upgrade_box_height = 180.0f;  // Square boxes
-float upgrade_box_spacing = 50.0f;
-float upgrade_border_thickness = 3.0f;
-
-// Title position
-float shop_title_y = 300.0f;
-
-// Label positions (below each box)
-float label_offset_y = -150.0f;
-
-
-
+//
+//// Shop popup dimensions
+//float shop_popup_width = 1600.0f;
+//float shop_popup_height = 900.0f;  // Increased for title
+//
+//// Shop upgrade boxes (4 boxes)
+//float upgrade_box_width = 180.0f;
+//float upgrade_box_height = 180.0f;  // Square boxes
+//float upgrade_box_spacing = 50.0f;
+//float upgrade_border_thickness = 3.0f;
+//
+//// Title position
+//float shop_title_y = 300.0f;
+//
+//// Label positions (below each box)
+//float label_offset_y = -150.0f;
+//
+//
+//
 
 
 // --------------------------------------------------------------------------
@@ -377,99 +378,121 @@ AEGfxVertexList* CreateShopTriggerMesh(float width, float height)
 
     return AEGfxMeshEnd();
 }
+//
+//AEGfxVertexList* CreateShopBackgroundMesh(float width, float height)
+//{
+//    AEGfxMeshStart();
+//
+//    float half_width = width / 2.0f;
+//    float half_height = height / 2.0f;
+//
+//    // Semi-transparent dark overlay
+//    AEGfxTriAdd(
+//        -half_width, -half_height, 0xDD000000, 0.0f, 1.0f,
+//        half_width, -half_height, 0xDD000000, 1.0f, 1.0f,
+//        -half_width, half_height, 0xDD000000, 0.0f, 0.0f);
+//
+//    AEGfxTriAdd(
+//        half_width, -half_height, 0xDD000000, 1.0f, 1.0f,
+//        half_width, half_height, 0xDD000000, 1.0f, 0.0f,
+//        -half_width, half_height, 0xDD000000, 0.0f, 0.0f);
+//
+//    return AEGfxMeshEnd();
+//}
+//
+//AEGfxVertexList* CreateUpgradeBoxMesh(float width, float height)
+//{
+//    AEGfxMeshStart();
+//
+//    float half_width = width / 2.0f;
+//    float half_height = height / 2.0f;
+//
+//    // Textured box for upgrade images
+//    AEGfxTriAdd(
+//        -half_width, -half_height, 0xFFFFFFFF, 0.0f, 1.0f,
+//        half_width, -half_height, 0xFFFFFFFF, 1.0f, 1.0f,
+//        -half_width, half_height, 0xFFFFFFFF, 0.0f, 0.0f);
+//
+//    AEGfxTriAdd(
+//        half_width, -half_height, 0xFFFFFFFF, 1.0f, 1.0f,
+//        half_width, half_height, 0xFFFFFFFF, 1.0f, 0.0f,
+//        -half_width, half_height, 0xFFFFFFFF, 0.0f, 0.0f);
+//
+//    return AEGfxMeshEnd();
+//}
+//
+//AEGfxVertexList* CreateUpgradeBoxBorderMesh(float width, float height, float thickness)
+//{
+//    AEGfxMeshStart();
+//
+//    float hw = width / 2.0f;   // half width
+//    float hh = height / 2.0f;  // half height
+//    float t = thickness;       // border thickness
+//
+//    // Top border (horizontal bar)
+//    AEGfxTriAdd(
+//        -hw, hh - t, 0xFFFFFFFF, 0.0f, 0.0f,
+//        hw, hh - t, 0xFFFFFFFF, 1.0f, 0.0f,
+//        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
+//    AEGfxTriAdd(
+//        hw, hh - t, 0xFFFFFFFF, 1.0f, 0.0f,
+//        hw, hh, 0xFFFFFFFF, 1.0f, 1.0f,
+//        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
+//
+//    // Bottom border (horizontal bar)
+//    AEGfxTriAdd(
+//        -hw, -hh, 0xFFFFFFFF, 0.0f, 0.0f,
+//        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
+//        -hw, -hh + t, 0xFFFFFFFF, 0.0f, 1.0f);
+//    AEGfxTriAdd(
+//        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
+//        hw, -hh + t, 0xFFFFFFFF, 1.0f, 1.0f,
+//        -hw, -hh + t, 0xFFFFFFFF, 0.0f, 1.0f);
+//
+//    // Left border (vertical bar)
+//    AEGfxTriAdd(
+//        -hw, -hh, 0xFFFFFFFF, 0.0f, 0.0f,
+//        -hw + t, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
+//        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
+//    AEGfxTriAdd(
+//        -hw + t, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
+//        -hw + t, hh, 0xFFFFFFFF, 1.0f, 1.0f,
+//        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
+//
+//    // Right border (vertical bar)
+//    AEGfxTriAdd(
+//        hw - t, -hh, 0xFFFFFFFF, 0.0f, 0.0f,
+//        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
+//        hw - t, hh, 0xFFFFFFFF, 0.0f, 1.0f);
+//    AEGfxTriAdd(
+//        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
+//        hw, hh, 0xFFFFFFFF, 1.0f, 1.0f,
+//        hw - t, hh, 0xFFFFFFFF, 0.0f, 1.0f);
+//
+//    return AEGfxMeshEnd();
+//}
+//
+//AEGfxVertexList* CreateShopBackgroundImageMesh(float width, float height)
+//{
+//    AEGfxMeshStart();
+//
+//    float half_width = width / 2.0f;
+//    float half_height = height / 2.0f;
+//
+//    // Textured quad for background image
+//    AEGfxTriAdd(
+//        -half_width, -half_height, 0xFFFFFFFF, 0.0f, 1.0f,
+//        half_width, -half_height, 0xFFFFFFFF, 1.0f, 1.0f,
+//        -half_width, half_height, 0xFFFFFFFF, 0.0f, 0.0f);
+//
+//    AEGfxTriAdd(
+//        half_width, -half_height, 0xFFFFFFFF, 1.0f, 1.0f,
+//        half_width, half_height, 0xFFFFFFFF, 1.0f, 0.0f,
+//        -half_width, half_height, 0xFFFFFFFF, 0.0f, 0.0f);
+//
+//    return AEGfxMeshEnd();
+//}
 
-AEGfxVertexList* CreateShopBackgroundMesh(float width, float height)
-{
-    AEGfxMeshStart();
-
-    float half_width = width / 2.0f;
-    float half_height = height / 2.0f;
-
-    // Semi-transparent dark overlay
-    AEGfxTriAdd(
-        -half_width, -half_height, 0xDD000000, 0.0f, 1.0f,
-        half_width, -half_height, 0xDD000000, 1.0f, 1.0f,
-        -half_width, half_height, 0xDD000000, 0.0f, 0.0f);
-
-    AEGfxTriAdd(
-        half_width, -half_height, 0xDD000000, 1.0f, 1.0f,
-        half_width, half_height, 0xDD000000, 1.0f, 0.0f,
-        -half_width, half_height, 0xDD000000, 0.0f, 0.0f);
-
-    return AEGfxMeshEnd();
-}
-
-AEGfxVertexList* CreateUpgradeBoxMesh(float width, float height)
-{
-    AEGfxMeshStart();
-
-    float half_width = width / 2.0f;
-    float half_height = height / 2.0f;
-
-    // Textured box for upgrade images
-    AEGfxTriAdd(
-        -half_width, -half_height, 0xFFFFFFFF, 0.0f, 1.0f,
-        half_width, -half_height, 0xFFFFFFFF, 1.0f, 1.0f,
-        -half_width, half_height, 0xFFFFFFFF, 0.0f, 0.0f);
-
-    AEGfxTriAdd(
-        half_width, -half_height, 0xFFFFFFFF, 1.0f, 1.0f,
-        half_width, half_height, 0xFFFFFFFF, 1.0f, 0.0f,
-        -half_width, half_height, 0xFFFFFFFF, 0.0f, 0.0f);
-
-    return AEGfxMeshEnd();
-}
-
-AEGfxVertexList* CreateUpgradeBoxBorderMesh(float width, float height, float thickness)
-{
-    AEGfxMeshStart();
-
-    float hw = width / 2.0f;   // half width
-    float hh = height / 2.0f;  // half height
-    float t = thickness;       // border thickness
-
-    // Top border (horizontal bar)
-    AEGfxTriAdd(
-        -hw, hh - t, 0xFFFFFFFF, 0.0f, 0.0f,
-        hw, hh - t, 0xFFFFFFFF, 1.0f, 0.0f,
-        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-    AEGfxTriAdd(
-        hw, hh - t, 0xFFFFFFFF, 1.0f, 0.0f,
-        hw, hh, 0xFFFFFFFF, 1.0f, 1.0f,
-        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-
-    // Bottom border (horizontal bar)
-    AEGfxTriAdd(
-        -hw, -hh, 0xFFFFFFFF, 0.0f, 0.0f,
-        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-        -hw, -hh + t, 0xFFFFFFFF, 0.0f, 1.0f);
-    AEGfxTriAdd(
-        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-        hw, -hh + t, 0xFFFFFFFF, 1.0f, 1.0f,
-        -hw, -hh + t, 0xFFFFFFFF, 0.0f, 1.0f);
-
-    // Left border (vertical bar)
-    AEGfxTriAdd(
-        -hw, -hh, 0xFFFFFFFF, 0.0f, 0.0f,
-        -hw + t, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-    AEGfxTriAdd(
-        -hw + t, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-        -hw + t, hh, 0xFFFFFFFF, 1.0f, 1.0f,
-        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-
-    // Right border (vertical bar)
-    AEGfxTriAdd(
-        hw - t, -hh, 0xFFFFFFFF, 0.0f, 0.0f,
-        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-        hw - t, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-    AEGfxTriAdd(
-        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-        hw, hh, 0xFFFFFFFF, 1.0f, 1.0f,
-        hw - t, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-
-    return AEGfxMeshEnd();
-}
 
 
 
@@ -1241,154 +1264,145 @@ void RenderShopTrigger(AEGfxVertexList* triggerMesh)
     AEGfxSetTransform(transform.m);
     AEGfxMeshDraw(triggerMesh, AE_GFX_MDM_TRIANGLES);
 }
-
-
-void RenderShopPopup(AEGfxVertexList* backgroundMesh, AEGfxVertexList* upgradeBoxMesh,
-    AEGfxVertexList* borderMesh, AEGfxTexture* upgrade1Tex,
-    AEGfxTexture* upgrade2Tex, AEGfxTexture* upgrade3Tex,
-    AEGfxTexture* upgrade4Tex, s8 font_id)
-{
-    // Switch to screen space
-    AEGfxSetCamPosition(0.0f, 0.0f);
-
-    // Draw semi-transparent background overlay
-    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-    AEGfxSetBlendMode(AE_GFX_BM_BLEND);
-    AEGfxSetTransparency(0.95f);
-    AEGfxSetColorToMultiply(0.4f, 0.35f, 0.3f, 1.0f);  // Brown background like image
-    AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
-
-    AEMtx33 scale, rotate, translate, transform;
-    AEMtx33Scale(&scale, 1.0f, 1.0f);
-    AEMtx33Rot(&rotate, 0.0f);
-    AEMtx33Trans(&translate, 0.0f, 0.0f);
-    AEMtx33Concat(&transform, &rotate, &scale);
-    AEMtx33Concat(&transform, &translate, &transform);
-
-    AEGfxSetTransform(transform.m);
-    AEGfxMeshDraw(backgroundMesh, AE_GFX_MDM_TRIANGLES);
-
-    // Draw "UPGRADE SYSTEM" title
-    if (font_id >= 0)
-    {
-        AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-        AEGfxSetBlendMode(AE_GFX_BM_BLEND);
-        AEGfxSetTransparency(1.0f);
-
-        // Large white title text
-        AEGfxPrint(font_id, (char*)"UPGRADE SYSTEM", -0.35f, 0.75f, 2.5f, 0.9f, 0.85f, 0.75f, 1.0f);
-    }
-
-    // Calculate positions for 4 boxes
-    float total_width = (upgrade_box_width * 4) + (upgrade_box_spacing * 3);
-    float start_x = -total_width / 2.0f + upgrade_box_width / 2.0f;
-    float box_y = 50.0f;  // Vertical position for boxes
-
-    // Draw horizontal line above boxes
-    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-    AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
-    AEMtx33Scale(&scale, 1.0f, 1.0f);
-    AEMtx33Rot(&rotate, 0.0f);
-    AEMtx33Trans(&translate, 0.0f, 250.0f);
-    AEMtx33Concat(&transform, &rotate, &scale);
-    AEMtx33Concat(&transform, &translate, &transform);
-
-    // Draw 4 upgrade boxes with textures AND borders
-    AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
-    AEGfxSetBlendMode(AE_GFX_BM_BLEND);
-    AEGfxSetTransparency(1.0f);
-
-    // Box 1 - Pick/Shovel & speed
-    float box1_x = start_x;
-    if (upgrade1Tex)
-    {
-        AEGfxTextureSet(upgrade1Tex, 0, 0);
-        AEMtx33Trans(&translate, box1_x, box_y);
-        AEMtx33Concat(&transform, &rotate, &scale);
-        AEMtx33Concat(&transform, &translate, &transform);
-        AEGfxSetTransform(transform.m);
-        AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
-    }
-    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-    AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
-    AEGfxSetTransform(transform.m);
-    AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
-
-    // Box 2 - Oxygen Level
-    float box2_x = start_x + (upgrade_box_width + upgrade_box_spacing);
-    AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
-    if (upgrade2Tex)
-    {
-        AEGfxTextureSet(upgrade2Tex, 0, 0);
-        AEMtx33Trans(&translate, box2_x, box_y);
-        AEMtx33Concat(&transform, &rotate, &scale);
-        AEMtx33Concat(&transform, &translate, &transform);
-        AEGfxSetTransform(transform.m);
-        AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
-    }
-    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-    AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
-    AEGfxSetTransform(transform.m);
-    AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
-
-    // Box 3 - Sanity Level
-    float box3_x = start_x + (upgrade_box_width + upgrade_box_spacing) * 2;
-    AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
-    if (upgrade3Tex)
-    {
-        AEGfxTextureSet(upgrade3Tex, 0, 0);
-        AEMtx33Trans(&translate, box3_x, box_y);
-        AEMtx33Concat(&transform, &rotate, &scale);
-        AEMtx33Concat(&transform, &translate, &transform);
-        AEGfxSetTransform(transform.m);
-        AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
-    }
-    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-    AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
-    AEGfxSetTransform(transform.m);
-    AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
-
-    // Box 4 - Light Range
-    float box4_x = start_x + (upgrade_box_width + upgrade_box_spacing) * 3;
-    AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
-    if (upgrade4Tex)
-    {
-        AEGfxTextureSet(upgrade4Tex, 0, 0);
-        AEMtx33Trans(&translate, box4_x, box_y);
-        AEMtx33Concat(&transform, &rotate, &scale);
-        AEMtx33Concat(&transform, &translate, &transform);
-        AEGfxSetTransform(transform.m);
-        AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
-    }
-    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-    AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
-    AEGfxSetTransform(transform.m);
-    AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
-
-    // Draw labels below each box
-    if (font_id >= 0)
-    {
-        AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-        AEGfxSetBlendMode(AE_GFX_BM_BLEND);
-        AEGfxSetTransparency(1.0f);
-
-        // Label 1 - Pick/Shovel & speed
-        AEGfxPrint(font_id, (char*)"Pick/Shovel &", -0.55f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-        AEGfxPrint(font_id, (char*)"speed", -0.48f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-
-        // Label 2 - Oxygen Level
-        AEGfxPrint(font_id, (char*)"Oxygen", -0.20f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-        AEGfxPrint(font_id, (char*)"Level", -0.20f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-
-        // Label 3 - Sanity Level
-        AEGfxPrint(font_id, (char*)"Sanity", 0.09f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-        AEGfxPrint(font_id, (char*)"Level", 0.09f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-
-        // Label 4 - Light Range
-        AEGfxPrint(font_id, (char*)"Light", 0.38f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-        AEGfxPrint(font_id, (char*)"Range", 0.38f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-    }
-}
+//
+//
+//void RenderShopPopup(AEGfxVertexList* backgroundImageMesh, AEGfxTexture* backgroundTexture,
+//    AEGfxVertexList* upgradeBoxMesh, AEGfxVertexList* borderMesh,
+//    AEGfxTexture* upgrade1Tex, AEGfxTexture* upgrade2Tex,
+//    AEGfxTexture* upgrade3Tex, AEGfxTexture* upgrade4Tex, s8 font_id)
+//{
+//    // Switch to screen space
+//    AEGfxSetCamPosition(0.0f, 0.0f);
+//
+//    // Draw background image ONLY (no overlay)
+//    if (backgroundTexture && backgroundImageMesh)
+//    {
+//        AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
+//        AEGfxSetBlendMode(AE_GFX_BM_BLEND);
+//        AEGfxSetTransparency(1.0f);
+//        AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
+//        AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
+//        AEGfxTextureSet(backgroundTexture, 0, 0);
+//
+//        AEMtx33 scale, rotate, translate, transform;
+//        AEMtx33Scale(&scale, 1.0f, 1.0f);
+//        AEMtx33Rot(&rotate, 0.0f);
+//        AEMtx33Trans(&translate, 0.0f, 0.0f);
+//        AEMtx33Concat(&transform, &rotate, &scale);
+//        AEMtx33Concat(&transform, &translate, &transform);
+//
+//        AEGfxSetTransform(transform.m);
+//        AEGfxMeshDraw(backgroundImageMesh, AE_GFX_MDM_TRIANGLES);
+//    }
+//
+//   
+//
+//    // Calculate positions for 4 boxes
+//    float total_width = (upgrade_box_width * 4) + (upgrade_box_spacing * 3);
+//    float start_x = -total_width / 2.0f + upgrade_box_width / 2.0f;
+//    float box_y = 50.0f;
+//
+//    AEMtx33 scale, rotate, translate, transform;
+//    AEMtx33Scale(&scale, 1.0f, 1.0f);
+//    AEMtx33Rot(&rotate, 0.0f);
+//
+//    //// Draw 4 upgrade boxes with textures AND borders
+//    //AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
+//    //AEGfxSetBlendMode(AE_GFX_BM_BLEND);
+//    //AEGfxSetTransparency(1.0f);
+//
+//    //// Box 1 - Pick/Shovel & speed
+//    //float box1_x = start_x;
+//    //if (upgrade1Tex)
+//    //{
+//    //    AEGfxTextureSet(upgrade1Tex, 0, 0);
+//    //    AEMtx33Trans(&translate, box1_x, box_y);
+//    //    AEMtx33Concat(&transform, &rotate, &scale);
+//    //    AEMtx33Concat(&transform, &translate, &transform);
+//    //    AEGfxSetTransform(transform.m);
+//    //    AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
+//    //}
+//    //AEGfxSetRenderMode(AE_GFX_RM_COLOR);
+//    //AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
+//    //AEGfxSetTransform(transform.m);
+//    //AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
+//
+//    //// Box 2 - Oxygen Level
+//    //float box2_x = start_x + (upgrade_box_width + upgrade_box_spacing);
+//    //AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
+//    //if (upgrade2Tex)
+//    //{
+//    //    AEGfxTextureSet(upgrade2Tex, 0, 0);
+//    //    AEMtx33Trans(&translate, box2_x, box_y);
+//    //    AEMtx33Concat(&transform, &rotate, &scale);
+//    //    AEMtx33Concat(&transform, &translate, &transform);
+//    //    AEGfxSetTransform(transform.m);
+//    //    AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
+//    //}
+//    //AEGfxSetRenderMode(AE_GFX_RM_COLOR);
+//    //AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
+//    //AEGfxSetTransform(transform.m);
+//    //AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
+//
+//    //// Box 3 - Sanity Level
+//    //float box3_x = start_x + (upgrade_box_width + upgrade_box_spacing) * 2;
+//    //AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
+//    //if (upgrade3Tex)
+//    //{
+//    //    AEGfxTextureSet(upgrade3Tex, 0, 0);
+//    //    AEMtx33Trans(&translate, box3_x, box_y);
+//    //    AEMtx33Concat(&transform, &rotate, &scale);
+//    //    AEMtx33Concat(&transform, &translate, &transform);
+//    //    AEGfxSetTransform(transform.m);
+//    //    AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
+//    //}
+//    //AEGfxSetRenderMode(AE_GFX_RM_COLOR);
+//    //AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
+//    //AEGfxSetTransform(transform.m);
+//    //AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
+//
+//    //// Box 4 - Light Range
+//    //float box4_x = start_x + (upgrade_box_width + upgrade_box_spacing) * 3;
+//    //AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
+//    //if (upgrade4Tex)
+//    //{
+//    //    AEGfxTextureSet(upgrade4Tex, 0, 0);
+//    //    AEMtx33Trans(&translate, box4_x, box_y);
+//    //    AEMtx33Concat(&transform, &rotate, &scale);
+//    //    AEMtx33Concat(&transform, &translate, &transform);
+//    //    AEGfxSetTransform(transform.m);
+//    //    AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
+//    //}
+//    //AEGfxSetRenderMode(AE_GFX_RM_COLOR);
+//    //AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
+//    //AEGfxSetTransform(transform.m);
+//    //AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
+//
+//    //// Draw labels below each box
+//    //if (font_id >= 0)
+//    //{
+//    //    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
+//    //    AEGfxSetBlendMode(AE_GFX_BM_BLEND);
+//    //    AEGfxSetTransparency(1.0f);
+//
+//    //    // Label 1
+//    //    AEGfxPrint(font_id, (char*)"Pick/Shovel &", -0.55f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
+//    //    AEGfxPrint(font_id, (char*)"speed", -0.48f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
+//
+//    //    // Label 2
+//    //    AEGfxPrint(font_id, (char*)"Oxygen", -0.20f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
+//    //    AEGfxPrint(font_id, (char*)"Level", -0.20f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
+//
+//    //    // Label 3
+//    //    AEGfxPrint(font_id, (char*)"Sanity", 0.09f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
+//    //    AEGfxPrint(font_id, (char*)"Level", 0.09f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
+//
+//    //    // Label 4
+//    //    AEGfxPrint(font_id, (char*)"Light", 0.38f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
+//    //    AEGfxPrint(font_id, (char*)"Range", 0.38f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
+//    //}
+//}
+//
 
 void RenderShopPrompt(s8 font_id)
 {
@@ -1426,6 +1440,22 @@ void RenderShopPrompt(s8 font_id)
 //}
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// GAME STATE SYSTEM
+// ---------------------------------------------------------------------------
+enum GameState
+{
+    GS_MAIN_GAME,
+    GS_SHOP
+};
+
+GameState current_state = GS_MAIN_GAME;
+GameState next_state = GS_MAIN_GAME;
+
+
+
+
+
 // MAIN
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -1461,12 +1491,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     AEGfxTexture* bouldericonTexture = AEGfxTextureLoad("../Assets/bouldericon.png");
     AEGfxTexture* mapiconTexture = AEGfxTextureLoad("../Assets/mapicon.png");
 
-	// Shop Upgrade Textures
-    // Load shop textures (add after your existing texture loads)
-    AEGfxTexture* upgrade1Texture = AEGfxTextureLoad("../Assets/pickaxeicon.png");
-    AEGfxTexture* upgrade2Texture = AEGfxTextureLoad("../Assets/o2icon.png");
-    AEGfxTexture* upgrade3Texture = AEGfxTextureLoad("../Assets/sanityicon.png");
-    AEGfxTexture* upgrade4Texture = AEGfxTextureLoad("../Assets/torchicon.png");
+	//// Shop Upgrade Textures
+ //   // Load shop textures (add after your existing texture loads)
+ //   AEGfxTexture* upgrade1Texture = AEGfxTextureLoad("../Assets/pickaxeicon.png");
+ //   AEGfxTexture* upgrade2Texture = AEGfxTextureLoad("../Assets/o2icon.png");
+ //   AEGfxTexture* upgrade3Texture = AEGfxTextureLoad("../Assets/sanityicon.png");
+ //   AEGfxTexture* upgrade4Texture = AEGfxTextureLoad("../Assets/torchicon.png");
+ //   AEGfxTexture* shopBackgroundTexture = AEGfxTextureLoad("../Assets/shopui.png");
 
 
     AEGfxVertexList* dirtMesh;
@@ -1510,11 +1541,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         1.0f     // Border thickness in pixels
     );
 
-    // Create shop meshes
+    //// Create shop meshes
+    //AEGfxVertexList* shopTriggerMesh = CreateShopTriggerMesh(shop_trigger_width, shop_trigger_height);
+    //AEGfxVertexList* shopBackgroundImageMesh = CreateShopBackgroundImageMesh(shop_popup_width, shop_popup_height);
+    //AEGfxVertexList* upgradeBoxMesh = CreateUpgradeBoxMesh(upgrade_box_width, upgrade_box_height);
+    //AEGfxVertexList* upgradeBoxBorderMesh = CreateUpgradeBoxBorderMesh(upgrade_box_width, upgrade_box_height, upgrade_border_thickness);
     AEGfxVertexList* shopTriggerMesh = CreateShopTriggerMesh(shop_trigger_width, shop_trigger_height);
-    AEGfxVertexList* shopBackgroundMesh = CreateShopBackgroundMesh(SCREEN_WIDTH, SCREEN_HEIGHT);
-    AEGfxVertexList* upgradeBoxMesh = CreateUpgradeBoxMesh(upgrade_box_width, upgrade_box_height);
-    AEGfxVertexList* upgradeBoxBorderMesh = CreateUpgradeBoxBorderMesh(upgrade_box_width, upgrade_box_height, upgrade_border_thickness);  // ADD THIS
 
 
 
@@ -1522,99 +1554,104 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     player_x = 0.0f;
     player_y = (5 * TILE_SIZE) - (MAP_HEIGHT * TILE_SIZE / 2.0f) - 100.0f;
 
-    // ===== GAME LOOP =====
+    Shop_Load();
+
+    // GAME LOOP
     while (gGameRunning)
     {
         AESysFrameStart();
 
+        // Check for state change
+        if (current_state != next_state)
+        {
+            // Free current state
+            if (current_state == GS_SHOP)
+            {
+                Shop_Free();
+            }
+
+            // Initialize next state
+            current_state = next_state;
+
+            if (current_state == GS_SHOP)
+            {
+                Shop_Initialize();
+            }
+        }
+
         float dt = AEFrameRateControllerGetFrameTime();
 
-        // Update
-        UpdatePhysics(dt);
-        UpdateMining(dt);
-        UpdateCamera(dt);
-        UpdateOxygenSystem(dt);
-        UpdateShopSystem(dt);
-
-        // Render
-		AEGfxSetBackgroundColor(0.0f, 0.0f, 0.0f);  // Black background
-        AEGfxSetCamPosition(camera_x, camera_y);
-
-        // Draw background
-        if (texture_loaded)
+        // Update current state
+        if (current_state == GS_MAIN_GAME)
         {
-            RenderBackground(tilesetTexture, dirtMesh, stoneMesh);
-        }
-        /*else
-        {
-            RenderBackgroundFallback(dirtMesh, stoneMesh);
-        }*/
+            // Main game updates
+            UpdatePhysics(dt);
+            UpdateMining(dt);
+            UpdateCamera(dt);
+            UpdateOxygenSystem(dt);
+            UpdateShopSystem(dt);
 
-        
+            // Check if player wants to enter shop
+            if (player_in_shop_zone)
+            {
+                if (AEInputCheckTriggered(AEVK_RETURN) || AEInputCheckTriggered(AEVK_LBUTTON))
+                {
+                    next_state = GS_SHOP;
+                }
+            }
 
-        // Draw mining cursor
-        RenderMiningCursor(cursorMesh);
+            // Render main game
+            AEGfxSetBackgroundColor(0.0f, 0.0f, 0.0f);
+            AEGfxSetCamPosition(camera_x, camera_y);
 
-        // Draw player
-        RenderPlayer(playerMesh);
+            if (texture_loaded)
+                RenderBackground(tilesetTexture, dirtMesh, stoneMesh);
+            else
+                RenderBackgroundFallback(dirtMesh, stoneMesh);
 
-		// Draw side blackouts
-		RenderSideBlackout(leftBlackoutMesh, rightBlackoutMesh);
+            RenderMiningCursor(cursorMesh);
+            RenderPlayer(playerMesh);
+            RenderSideBlackout(leftBlackoutMesh, rightBlackoutMesh);
+            RenderSafeZone(safezoneBorderMesh);
 
-        // Draw safezone
-        RenderSafeZone(safezoneBorderMesh);
-
-		// Draw map icon
-        if (Createmapicon)
-        {
+            // Draw icons
             Rendermapicon(mapiconTexture, mapiconMesh, mapiconwidth, mapiconheight);
-		}
-
-		// Draw oxygen icon
-        if (Createoxygenicon)
-        {
             Renderoxygenicon(oxygeniconTexture, oxygeniconMesh, oxygeniconwidth, oxygeniconheight);
-        }
-
-		// Draw sanity icon
-        if (Createsanityicon)
-        {
             Rendersanityicon(sanityiconTexture, sanityiconMesh, sanityiconwidth, sanityiconheight);
-		}
-
-		// Draw boulder icon
-        if (Createbouldericon)
-        {
             Renderbouldericon(bouldericonTexture, bouldericonMesh, bouldericonwidth, bouldericonheight);
-		}
-  
-        // Draw shop trigger (only when shop is closed)
-        if (!shop_is_open)
-        {
+
+            // Draw shop trigger box
             RenderShopTrigger(shopTriggerMesh);
             RenderShopPrompt(g_font_id);
-        }
 
-        // Draw shop popup (only when open)
-        if (shop_is_open)
+            RenderOxygenUI(g_font_id);
+            //RenderUI();
+        }
+        else if (current_state == GS_SHOP)
         {
-            RenderShopPopup(shopBackgroundMesh, upgradeBoxMesh, upgradeBoxBorderMesh,
-                upgrade1Texture, upgrade2Texture, upgrade3Texture, upgrade4Texture, g_font_id);
+            // Shop state update
+            Shop_Update();
+
+            // Check if player exits shop
+            if (AEInputCheckTriggered(AEVK_ESCAPE))
+            {
+                next_state = GS_MAIN_GAME;
+            }
+
+            // Render shop
+            Shop_Draw();
         }
 
-
-
-        RenderOxygenUI(g_font_id);
-
-        // Draw UI
-        //RenderUI();
-
-        // Exit
-        if (AEInputCheckTriggered(AEVK_ESCAPE) || 0 == AESysDoesWindowExist())
-            gGameRunning = 0;
-
+        // Exit game
+        if (AEInputCheckTriggered(AEVK_ESCAPE) && current_state == GS_MAIN_GAME)
+        {
+            if (!AESysDoesWindowExist())
+                gGameRunning = 0;
+        }
+        //Shop_Unload();
         AESysFrameEnd();
     }
+
 
 
    // Cleanup
@@ -1629,17 +1666,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     AEGfxMeshFree(sanityiconMesh);
     AEGfxMeshFree(bouldericonMesh);
     AEGfxMeshFree(mapiconMesh);
-    // Cleanup shop meshes
-    AEGfxMeshFree(shopTriggerMesh);
-    AEGfxMeshFree(shopBackgroundMesh);
-    AEGfxMeshFree(upgradeBoxMesh);
-    AEGfxMeshFree(upgradeBoxBorderMesh);
+    //// Cleanup shop meshes
+    //AEGfxMeshFree(shopTriggerMesh);
+    //AEGfxMeshFree(upgradeBoxMesh);
+    //AEGfxMeshFree(upgradeBoxBorderMesh);
 
-    // Unload shop textures
-    if (upgrade1Texture) AEGfxTextureUnload(upgrade1Texture);
-    if (upgrade2Texture) AEGfxTextureUnload(upgrade2Texture);
-    if (upgrade3Texture) AEGfxTextureUnload(upgrade3Texture);
-    if (upgrade4Texture) AEGfxTextureUnload(upgrade4Texture);
+    //// Unload shop textures
+    //if (upgrade1Texture) AEGfxTextureUnload(upgrade1Texture);
+    //if (upgrade2Texture) AEGfxTextureUnload(upgrade2Texture);
+    //if (upgrade3Texture) AEGfxTextureUnload(upgrade3Texture);
+    //if (upgrade4Texture) AEGfxTextureUnload(upgrade4Texture);
 
 
 
