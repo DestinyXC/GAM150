@@ -24,7 +24,8 @@ int hover_box2 = 0;  // Oxygen upgrade
 int hover_box3 = 0;  // Sanity upgrade
 int hover_box4 = 0;  // Torch/Light upgrade
 
-// Upgrade levels
+// Upgrade levels (shared with main.cpp)
+int oxygen_upgrade_level = 0;
 int pick_upgrade_level = 0;
 int sanity_upgrade_level = 0;
 int torch_upgrade_level = 0;
@@ -159,7 +160,7 @@ void Shop_Load()
     shopBackgroundImageMesh = CreateShopBackgroundImageMesh(shop_popup_width, shop_popup_height);
     upgradeBoxMesh = CreateUpgradeBoxMesh(upgrade_box_width, upgrade_box_height);
     upgradeBoxBorderMesh = CreateUpgradeBoxBorderMesh(upgrade_box_width, upgrade_box_height, 3.0f);
-    shop_font_id = AEGfxCreateFont("../Assets/liberation-mono.ttf", 24);
+    shop_font_id = AEGfxCreateFont("../Assets/fonts/liberation-mono.ttf", 24);
     printf("Shop state loaded!\n");
 }
 

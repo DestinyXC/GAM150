@@ -5,9 +5,9 @@
 
 #include <crtdbg.h>
 #include "AEEngine.h"
+#include "shop.hpp"
 #include <stdio.h>
 #include <time.h>
-#include "shop.hpp"
 
 // ---------------------------------------------------------------------------
 // CONFIGURATION
@@ -26,6 +26,102 @@
 // Screen
 #define SCREEN_WIDTH 1600.0f
 #define SCREEN_HEIGHT 900.0f
+
+// Lighting configurations
+#define MAX_TORCHES 50
+#define TORCH_GLOW_RADIUS 200.0f;
+#define HEADLAMP_GLOW_RADIUS 180.0f;
+
+// Mineable rocks configurations
+#define MAX_ROCKS 500
+#define ROCK_SPAWN_CHANCE 0.15f  // 5% chance to spawn a rock in stone tile
+
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Shop System - managed by shop.cpp
+// Variables: shop_is_active, oxygen_upgrade_level, pick_upgrade_level, etc.
+// See shop.hpp for interface
+int player_in_shop_zone = 0;
+float shop_trigger_x = 400.0f;
+float shop_trigger_y = -2700.0f;
+float shop_trigger_width = 150.0f;
+float shop_trigger_height = 150.0f;
+
+// --------------------------------------------------------------------------
+// TILE TYPES
+
+enum TileType
+{
+    TILE_EMPTY = -1,
+    TILE_DIRT = 0,     // Your first tile (adjust position)
+    TILE_STONE = 1,     // Your second tile (adjust position)
+    TILE_WALL = 2
+};
+
+// SET THESE TO MATCH YOUR SPRITESHEET POSITIONS (0-191)
+// Formula: position = (row * 16) + column
+// Example: Row 2, Column 5 = (2 * 16) + 5 = 37
+#define DIRT_SPRITE_POSITION 41    // Change to your dirt tile position
+#define STONE_SPRITE_POSITION 191   // Change to your stone tile position
+#define WALL_SPRITE_POSITION 16    // Change to your wall tile position
+
+// ---------------------------------------------------------------------------
+// TORCH STRUCTURE
+
+typedef struct {
+    float x;
+    float y;
+    int active;
+    float glow_radius;
+    float flicker_time;
+    float flicker_offset;
+} Torch;
+
+// ---------------------------------------------------------------------------
+// ROCK STRUCTURE
+
+typedef struct {
+    float x;
+    float y;
+    int active;
+    int sprite_index;
+} Rock;
+
+// ---------------------------------------------------------------------------
+// GLOBALS
+
+int tileMap[MAP_HEIGHT][MAP_WIDTH];
+
+// Camera (vertical only)
+float camera_x = 0.0f;
+float camera_y = 0.0f;
+float camera_smoothness = 0.15f;
+
+// Player
+float player_x = 0.0f;
+float player_y = 0.0f;
+float player_width = 75.0f;
+float player_height = 75.0f;
+float player_speed = 5.0f;
+
+// Mining
+float mining_range = 120.0f;
+int currently_mining_row = -1;
+int currently_mining_col = -1;
+
+// Stats
+int depth = 0;
+int max_depth = 0;
+
+// Lighting
+Torch torches[MAX_TORCHES];
+int torch_count = 0;
+float game_time = 0.0f;
+
+// Rocks
+Rock rocks[MAX_ROCKS];
+int rock_count = 0;
 
 //Oxygen icon dimension
 float oxygeniconwidth = 100.0f;
@@ -48,92 +144,46 @@ float oxygen_percentage = 100.0f;
 float oxygen_max = 100.0f;
 float oxygen_drain_rate = 2.0f;  // Per second outside safezone
 float oxygen_refill_rate = 2.0f; // Per second inside safezone
-int oxygen_upgrade_level = 0;    // For future upgrades
 
 // Safe Zone
-float safezone_x_min = -400.0f;
-float safezone_x_max = 400.0f;
+float safezone_x_min = -500.0f;
+float safezone_x_max = 500.0f;
 float safezone_y_min = -3200.0f;
-float safezone_y_max = -2600.0f;
+float safezone_y_max = -2530.0f;
 
 //Font
 s8 g_font_id = -1;
 
-
 // ---------------------------------------------------------------------------
+// FILE-SCOPE TEXTURE & MESH POINTERS  (shared by Init / Draw / Kill)
 
-// ---------------------------------------------------------------------------
-// Shop System
-int shop_is_open = 0;
-int player_in_shop_zone = 0;
-float shop_trigger_x = 325.0f;
-float shop_trigger_y = -2675.0f;
-float shop_trigger_width = 150.0f;
-float shop_trigger_height = 150.0f;
-//
-//// Shop popup dimensions
-//float shop_popup_width = 1600.0f;
-//float shop_popup_height = 900.0f;  // Increased for title
-//
-//// Shop upgrade boxes (4 boxes)
-//float upgrade_box_width = 180.0f;
-//float upgrade_box_height = 180.0f;  // Square boxes
-//float upgrade_box_spacing = 50.0f;
-//float upgrade_border_thickness = 3.0f;
-//
-//// Title position
-//float shop_title_y = 300.0f;
-//
-//// Label positions (below each box)
-//float label_offset_y = -150.0f;
-//
-//
-//
+static AEGfxTexture* g_tilesetTexture = NULL;
+static AEGfxTexture* g_oxygeniconTexture = NULL;
+static AEGfxTexture* g_sanityiconTexture = NULL;
+static AEGfxTexture* g_bouldericonTexture = NULL;
+static AEGfxTexture* g_mapiconTexture = NULL;
+static AEGfxTexture* g_playerTexture = NULL;
+static AEGfxTexture* g_glowTexture = NULL;
+static AEGfxTexture* g_rockTexture = NULL;
 
+static AEGfxVertexList* g_dirtMesh = NULL;
+static AEGfxVertexList* g_stoneMesh = NULL;
+static AEGfxVertexList* g_wallMesh = NULL;
+static AEGfxVertexList* g_playerMesh = NULL;
+static AEGfxVertexList* g_glowMesh = NULL;
+static AEGfxVertexList* g_rockMesh = NULL;
+static AEGfxVertexList* g_cursorMesh = NULL;
+static AEGfxVertexList* g_oxygeniconMesh = NULL;
+static AEGfxVertexList* g_sanityiconMesh = NULL;
+static AEGfxVertexList* g_bouldericonMesh = NULL;
+static AEGfxVertexList* g_mapiconMesh = NULL;
+static AEGfxVertexList* g_leftBlackoutMesh = NULL;
+static AEGfxVertexList* g_rightBlackoutMesh = NULL;
+static AEGfxVertexList* g_safezoneBorderMesh = NULL;
+static AEGfxVertexList* g_shopTriggerMesh = NULL;
+// Shop meshes/textures moved to shop.cpp
 
-// --------------------------------------------------------------------------
-// TILE TYPES
-
-enum TileType
-{
-    TILE_EMPTY = -1,
-    TILE_DIRT = 0,     // Your first tile (adjust position)
-    TILE_STONE = 1,     // Your second tile (adjust position)
-    TILE_WALL = 2
-};
-
-// SET THESE TO MATCH YOUR SPRITESHEET POSITIONS (0-191)
-// Formula: position = (row * 16) + column
-// Example: Row 2, Column 5 = (2 * 16) + 5 = 37
-#define DIRT_SPRITE_POSITION 41    // Change to your dirt tile position
-#define STONE_SPRITE_POSITION 191   // Change to your stone tile position
-#define WALL_SPRITE_POSITION 22    // Change to your wall tile position
-
-// ---------------------------------------------------------------------------
-// GLOBALS
-
-int tileMap[MAP_HEIGHT][MAP_WIDTH];
-
-// Camera (vertical only)
-float camera_x = 0.0f;
-float camera_y = 0.0f;
-float camera_smoothness = 0.15f;
-
-// Player
-float player_x = 0.0f;
-float player_y = 0.0f;
-float player_width = 48.0f;
-float player_height = 48.0f;
-float player_speed = 5.0f;
-
-// Mining
-float mining_range = 120.0f;
-int currently_mining_row = -1;
-int currently_mining_col = -1;
-
-// Stats
-int depth = 0;
-int max_depth = 0;
+static int g_texture_loaded = 0;
 
 // ---------------------------------------------------------------------------
 // UV MAPPING
@@ -219,6 +269,46 @@ AEGfxVertexList* CreateSideBlackoutMesh(float width, float height)
         half_width, -half_height, 0xFF000000, 1.0f, 1.0f,
         half_width, half_height, 0xFF000000, 1.0f, 0.0f,
         -half_width, half_height, 0xFF000000, 0.0f, 0.0f);
+
+    return AEGfxMeshEnd();
+}
+
+AEGfxVertexList* CreateGlowMesh(float size)
+{
+    AEGfxMeshStart();
+
+    float half = size / 2.0f;
+
+    AEGfxTriAdd(
+        -half, -half, 0xFFFFFFFF, 0.0f, 1.0f,
+        half, -half, 0xFFFFFFFF, 1.0f, 1.0f,
+        -half, half, 0xFFFFFFFF, 0.0f, 0.0f);
+
+    AEGfxTriAdd(
+        half, -half, 0xFFFFFFFF, 1.0f, 1.0f,
+        half, half, 0xFFFFFFFF, 1.0f, 0.0f,
+        -half, half, 0xFFFFFFFF, 0.0f, 0.0f);
+
+    return AEGfxMeshEnd();
+}
+
+// Creates a mesh for rendering a texture with full UVs (player, enemy)
+AEGfxVertexList* CreateTextureMesh(float width, float height)
+{
+    AEGfxMeshStart();
+
+    float half_width = width / 2.0f;
+    float half_height = height / 2.0f;
+
+    AEGfxTriAdd(
+        -half_width, -half_height, 0xFFFFFF00, 0.0f, 1.0f,
+        half_width, -half_height, 0xFFFFFF00, 1.0f, 1.0f,
+        -half_width, half_height, 0xFFFFFF00, 0.0f, 0.0f);
+
+    AEGfxTriAdd(
+        half_width, -half_height, 0xFFFFFF00, 1.0f, 1.0f,
+        half_width, half_height, 0xFFFFFF00, 1.0f, 0.0f,
+        -half_width, half_height, 0xFFFFFF00, 0.0f, 0.0f);
 
     return AEGfxMeshEnd();
 }
@@ -378,124 +468,6 @@ AEGfxVertexList* CreateShopTriggerMesh(float width, float height)
 
     return AEGfxMeshEnd();
 }
-//
-//AEGfxVertexList* CreateShopBackgroundMesh(float width, float height)
-//{
-//    AEGfxMeshStart();
-//
-//    float half_width = width / 2.0f;
-//    float half_height = height / 2.0f;
-//
-//    // Semi-transparent dark overlay
-//    AEGfxTriAdd(
-//        -half_width, -half_height, 0xDD000000, 0.0f, 1.0f,
-//        half_width, -half_height, 0xDD000000, 1.0f, 1.0f,
-//        -half_width, half_height, 0xDD000000, 0.0f, 0.0f);
-//
-//    AEGfxTriAdd(
-//        half_width, -half_height, 0xDD000000, 1.0f, 1.0f,
-//        half_width, half_height, 0xDD000000, 1.0f, 0.0f,
-//        -half_width, half_height, 0xDD000000, 0.0f, 0.0f);
-//
-//    return AEGfxMeshEnd();
-//}
-//
-//AEGfxVertexList* CreateUpgradeBoxMesh(float width, float height)
-//{
-//    AEGfxMeshStart();
-//
-//    float half_width = width / 2.0f;
-//    float half_height = height / 2.0f;
-//
-//    // Textured box for upgrade images
-//    AEGfxTriAdd(
-//        -half_width, -half_height, 0xFFFFFFFF, 0.0f, 1.0f,
-//        half_width, -half_height, 0xFFFFFFFF, 1.0f, 1.0f,
-//        -half_width, half_height, 0xFFFFFFFF, 0.0f, 0.0f);
-//
-//    AEGfxTriAdd(
-//        half_width, -half_height, 0xFFFFFFFF, 1.0f, 1.0f,
-//        half_width, half_height, 0xFFFFFFFF, 1.0f, 0.0f,
-//        -half_width, half_height, 0xFFFFFFFF, 0.0f, 0.0f);
-//
-//    return AEGfxMeshEnd();
-//}
-//
-//AEGfxVertexList* CreateUpgradeBoxBorderMesh(float width, float height, float thickness)
-//{
-//    AEGfxMeshStart();
-//
-//    float hw = width / 2.0f;   // half width
-//    float hh = height / 2.0f;  // half height
-//    float t = thickness;       // border thickness
-//
-//    // Top border (horizontal bar)
-//    AEGfxTriAdd(
-//        -hw, hh - t, 0xFFFFFFFF, 0.0f, 0.0f,
-//        hw, hh - t, 0xFFFFFFFF, 1.0f, 0.0f,
-//        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-//    AEGfxTriAdd(
-//        hw, hh - t, 0xFFFFFFFF, 1.0f, 0.0f,
-//        hw, hh, 0xFFFFFFFF, 1.0f, 1.0f,
-//        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-//
-//    // Bottom border (horizontal bar)
-//    AEGfxTriAdd(
-//        -hw, -hh, 0xFFFFFFFF, 0.0f, 0.0f,
-//        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-//        -hw, -hh + t, 0xFFFFFFFF, 0.0f, 1.0f);
-//    AEGfxTriAdd(
-//        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-//        hw, -hh + t, 0xFFFFFFFF, 1.0f, 1.0f,
-//        -hw, -hh + t, 0xFFFFFFFF, 0.0f, 1.0f);
-//
-//    // Left border (vertical bar)
-//    AEGfxTriAdd(
-//        -hw, -hh, 0xFFFFFFFF, 0.0f, 0.0f,
-//        -hw + t, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-//        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-//    AEGfxTriAdd(
-//        -hw + t, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-//        -hw + t, hh, 0xFFFFFFFF, 1.0f, 1.0f,
-//        -hw, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-//
-//    // Right border (vertical bar)
-//    AEGfxTriAdd(
-//        hw - t, -hh, 0xFFFFFFFF, 0.0f, 0.0f,
-//        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-//        hw - t, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-//    AEGfxTriAdd(
-//        hw, -hh, 0xFFFFFFFF, 1.0f, 0.0f,
-//        hw, hh, 0xFFFFFFFF, 1.0f, 1.0f,
-//        hw - t, hh, 0xFFFFFFFF, 0.0f, 1.0f);
-//
-//    return AEGfxMeshEnd();
-//}
-//
-//AEGfxVertexList* CreateShopBackgroundImageMesh(float width, float height)
-//{
-//    AEGfxMeshStart();
-//
-//    float half_width = width / 2.0f;
-//    float half_height = height / 2.0f;
-//
-//    // Textured quad for background image
-//    AEGfxTriAdd(
-//        -half_width, -half_height, 0xFFFFFFFF, 0.0f, 1.0f,
-//        half_width, -half_height, 0xFFFFFFFF, 1.0f, 1.0f,
-//        -half_width, half_height, 0xFFFFFFFF, 0.0f, 0.0f);
-//
-//    AEGfxTriAdd(
-//        half_width, -half_height, 0xFFFFFFFF, 1.0f, 1.0f,
-//        half_width, half_height, 0xFFFFFFFF, 1.0f, 0.0f,
-//        -half_width, half_height, 0xFFFFFFFF, 0.0f, 0.0f);
-//
-//    return AEGfxMeshEnd();
-//}
-
-
-
-
 
 // ---------------------------------------------------------------------------
 // WORLD GENERATION
@@ -508,13 +480,28 @@ void GenerateWorld()
     {
         for (int col = 0; col < MAP_WIDTH; col++)
         {
+            if (col == MAP_WIDTH / 2 && row == 9) {
+                tileMap[row][col] = TILE_EMPTY;
+            }
+            else if (col == MAP_WIDTH / 2 - 1 && row == 9) {
+                tileMap[row][col] = TILE_EMPTY;
+            }
+            else if (col == 0) {
+                tileMap[row][col] = TILE_WALL;
+            }
+            else if (col == MAP_WIDTH - 1) {
+                tileMap[row][col] = TILE_WALL;
+            }
+            else if (row == 9) {
+                tileMap[row][col] = TILE_WALL;
+            }
             // Surface area (rows 0-5) - empty (sky)
-            if (row < 5)
+            else if (row < 1)
             {
-                tileMap[row][col] = TILE_DIRT;
+                tileMap[row][col] = TILE_WALL;
             }
             // Shallow dirt layer (rows 5-30)
-            else if (row < 20)
+            else if (row < 10)
             {
                 tileMap[row][col] = TILE_DIRT;
             }
@@ -552,7 +539,67 @@ int IsTileValid(int row, int col)
 
 int IsTileSolid(int tile_type)
 {
-    return (tile_type == TILE_DIRT || tile_type == TILE_STONE);
+    return (tile_type == TILE_WALL);
+}
+
+// ---------------------------------------------------------------------------
+// TORCH SYSTEM
+
+void InitializeTorches()
+{
+    torch_count = 0;
+
+    // Scan the map for wall tiles and place torches on them
+    for (int row = 3; row < MAP_HEIGHT; row += 5)  // Every 5 rows
+    {
+        for (int col = 0; col < MAP_WIDTH; col++)
+        {
+            if (torch_count >= MAX_TORCHES) break;
+
+            // Place torches on left and right walls
+            if ((col == 0 || col == MAP_WIDTH - 1) && tileMap[row][col] == TILE_WALL)
+            {
+                float torch_x, torch_y;
+                GetTileWorldPosition(row, col, &torch_x, &torch_y);
+
+                torches[torch_count].x = torch_x;
+                torches[torch_count].y = torch_y;
+                torches[torch_count].active = 1;
+                torches[torch_count].glow_radius = TORCH_GLOW_RADIUS;
+                torches[torch_count].flicker_time = 0.0f;
+                torches[torch_count].flicker_offset = (float)(rand() % 100) / 100.0f * 6.28f;
+                torch_count++;
+            }
+        }
+    }
+}
+
+void InitializeRocks()
+{
+    rock_count = 0;
+
+    for (int row = 20; row < MAP_HEIGHT; row += 5) {
+        for (int col = 3; col < MAP_WIDTH; col += 2)
+        {
+            if (rock_count >= MAX_ROCKS) break;
+            // Place rocks in stone layers
+            if (tileMap[row][col] == TILE_STONE)
+            {
+                float random_value = (float)rand() / (float)RAND_MAX;
+                if (random_value < ROCK_SPAWN_CHANCE)
+                {
+                    float rock_x, rock_y;
+                    GetTileWorldPosition(row, col, &rock_x, &rock_y);
+
+                    rocks[rock_count].x = rock_x;
+                    rocks[rock_count].y = rock_y;
+                    rocks[rock_count].active = 1;
+                    rocks[rock_count].sprite_index = rand() % 3;  // Random rock variation (0-2)
+                    rock_count++;
+                }
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -570,6 +617,42 @@ int CheckCollisionRectangle(float x1, float y1, float width1, float height1,
         x1 - half_width1 < x2 + half_width2 &&
         y1 + half_height1 > y2 - half_height2 &&
         y1 - half_height1 < y2 + half_height2);
+}
+
+int CheckTileCollision(float x, float y)
+{
+    // Get the tile the player is in
+    int player_row, player_col;
+    GetTileAtPosition(x, y, &player_row, &player_col);
+
+    // Check tiles around the player (3x3 grid)
+    for (int dr = -1; dr <= 1; dr++)
+    {
+        for (int dc = -1; dc <= 1; dc++)
+        {
+            int check_row = player_row + dr;
+            int check_col = player_col + dc;
+
+            if (!IsTileValid(check_row, check_col)) continue;
+
+            int tile_type = tileMap[check_row][check_col];
+
+            // Check collision with solid tiles (DIRT, STONE, WALL)
+            if (IsTileSolid(tile_type))
+            {
+                float tile_x, tile_y;
+                GetTileWorldPosition(check_row, check_col, &tile_x, &tile_y);
+
+                if (CheckCollisionRectangle(x, y, player_width, player_height,
+                    tile_x, tile_y, TILE_SIZE, TILE_SIZE))
+                {
+                    return 1;  // Collision detected
+                }
+            }
+        }
+    }
+
+    return 0;  // No collision
 }
 
 // ---------------------------------------------------------------------------
@@ -594,9 +677,23 @@ void UpdatePhysics(float dt)
         move_y *= factor;
     }
 
-    // Apply movement
-    player_x += move_x;
-    player_y += move_y;
+    // Try to move horizontally
+    float new_x = player_x + move_x;
+    float new_y = player_y;
+
+    if (!CheckTileCollision(new_x, new_y))
+    {
+        player_x = new_x;
+    }
+
+    // Try to move vertically
+    new_x = player_x;
+    new_y = player_y + move_y;
+
+    if (!CheckTileCollision(new_x, new_y))
+    {
+        player_y = new_y;
+    }
 
     // Keep player within horizontal bounds
     float world_width = MAP_WIDTH * TILE_SIZE;
@@ -606,56 +703,21 @@ void UpdatePhysics(float dt)
     if (player_x < min_x) player_x = min_x;
     if (player_x > max_x) player_x = max_x;
 
-    // Collision with tiles
-    //int player_row, player_col;
-    //GetTileAtPosition(player_x, player_y, &player_row, &player_col);
+    // Keep player within vertical bounds
+    float world_height = MAP_HEIGHT * TILE_SIZE;
+    float min_y = -world_height / 2.0f + player_height / 2.0f;
+    float max_y = world_height / 2.0f - player_height / 2.0f;
 
-    //for (int dr = -2; dr <= 2; dr++)
-    //{
-    //    for (int dc = -2; dc <= 2; dc++)
-    //    {
-    //        int check_row = player_row + dr;
-    //        int check_col = player_col + dc;
+    if (player_y < min_y) player_y = min_y;
+    if (player_y > max_y) player_y = max_y;
 
-    //        if (!IsTileValid(check_row, check_col)) continue;
+    // Update depth tracking
+    int player_row, player_col;
+    GetTileAtPosition(player_x, player_y, &player_row, &player_col);
+    depth = player_row - 9;  // Surface is row 9
+    if (depth < 0) depth = 0;
+    if (depth > max_depth) max_depth = depth;
 
-    //        int tile_type = tileMap[check_row][check_col];
-
-    //        if (IsTileSolid(tile_type))
-    //        {
-    //            float tile_x, tile_y;
-    //            GetTileWorldPosition(check_row, check_col, &tile_x, &tile_y);
-
-    //            if (CheckCollisionRectangle(player_x, player_y, player_width, player_height,
-    //                tile_x, tile_y, TILE_SIZE, TILE_SIZE))
-    //            {
-    //                float overlap_x = (player_width / 2 + TILE_SIZE / 2) - fabsf(player_x - tile_x);
-    //                float overlap_y = (player_height / 2 + TILE_SIZE / 2) - fabsf(player_y - tile_y);
-
-    //                if (overlap_x < overlap_y)
-    //                {
-    //                    if (player_x < tile_x)
-    //                        player_x -= overlap_x;
-    //                    else
-    //                        player_x += overlap_x;
-    //                }
-    //                else
-    //                {
-    //                    if (player_y < tile_y)
-    //                        player_y -= overlap_y;
-    //                    else
-    //                        player_y += overlap_y;
-    //                }
-    //            }
-    //        }
-    //    }
-    //}
-
-    //// Update depth
-    //GetTileAtPosition(player_x, player_y, &player_row, &player_col);
-    //depth = player_row - 5;  // Surface is row 5
-    //if (depth < 0) depth = 0;
-    //if (depth > max_depth) max_depth = depth;
 }
 
 // ---------------------------------------------------------------------------
@@ -845,7 +907,6 @@ void UpdateOxygenSystem(float dt)
 
 
 // ---------------------------------------------------------------------------
-
 // SHOP SYSTEM
 void UpdateShopSystem(float dt)
 {
@@ -855,14 +916,16 @@ void UpdateShopSystem(float dt)
         shop_trigger_x, shop_trigger_y, shop_trigger_width, shop_trigger_height
     );
 
-    if (shop_is_open)
+    if (shop_is_active)
     {
-        // Close shop with right click, ESC, or ENTER
-        if (AEInputCheckTriggered(AEVK_RBUTTON) ||
-            AEInputCheckTriggered(AEVK_ESCAPE) ||
+        // Shop is open - handle shop updates
+        Shop_Update();
+
+        // Close shop with ESC or ENTER (shop.cpp handles clicks)
+        if (AEInputCheckTriggered(AEVK_ESCAPE) ||
             AEInputCheckTriggered(AEVK_RETURN))
         {
-            shop_is_open = 0;
+            Shop_Free();  // This sets shop_is_active = 0
         }
     }
     else
@@ -874,7 +937,7 @@ void UpdateShopSystem(float dt)
             if (AEInputCheckTriggered(AEVK_LBUTTON) ||
                 AEInputCheckTriggered(AEVK_RETURN))
             {
-                shop_is_open = 1;
+                Shop_Initialize();  // This sets shop_is_active = 1
             }
         }
     }
@@ -884,7 +947,7 @@ void UpdateShopSystem(float dt)
 // ---------------------------------------------------------------------------
 // RENDERING
 
-void RenderBackground(AEGfxTexture* tileset, AEGfxVertexList* dirtMesh, AEGfxVertexList* stoneMesh)
+void RenderBackground(AEGfxTexture* tileset, AEGfxVertexList* dirtMesh, AEGfxVertexList* stoneMesh, AEGfxVertexList* wallMesh)
 {
     AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
     AEGfxSetBlendMode(AE_GFX_BM_BLEND);
@@ -931,7 +994,80 @@ void RenderBackground(AEGfxTexture* tileset, AEGfxVertexList* dirtMesh, AEGfxVer
             {
                 AEGfxMeshDraw(stoneMesh, AE_GFX_MDM_TRIANGLES);
             }
+            else if (tile_type == TILE_WALL)
+            {
+                AEGfxMeshDraw(wallMesh, AE_GFX_MDM_TRIANGLES);
+            }
         }
+    }
+}
+
+void RenderLighting(AEGfxTexture* glowTexture, AEGfxVertexList* glowMesh)
+{
+    // Set up additive blending for glow effect
+    AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
+    AEGfxSetBlendMode(AE_GFX_BM_ADD);  // CRITICAL: Additive blending
+    AEGfxTextureSet(glowTexture, 0, 0);
+    AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
+    AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
+
+    // Draw all torch lights
+    for (int i = 0; i < torch_count; i++)
+    {
+        if (!torches[i].active) continue;
+
+        float glow_scale = torches[i].glow_radius / 128.0f;  // 128 = half glow texture size
+
+        AEGfxSetTransparency(0.5f);  // Adjust brightness
+
+        AEMtx33 scale, rotate, translate, transform;
+        AEMtx33Scale(&scale, glow_scale, glow_scale);
+        AEMtx33Rot(&rotate, 0.0f);
+        AEMtx33Trans(&translate, torches[i].x, torches[i].y);
+        AEMtx33Concat(&transform, &rotate, &scale);
+        AEMtx33Concat(&transform, &translate, &transform);
+
+        AEGfxSetTransform(transform.m);
+        AEGfxMeshDraw(glowMesh, AE_GFX_MDM_TRIANGLES);
+    }
+}
+
+void RenderRocks(AEGfxTexture* rockTexture, AEGfxVertexList* rockMesh)
+{
+    if (!rockTexture || !rockMesh) return;
+
+    AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
+    AEGfxSetBlendMode(AE_GFX_BM_BLEND);
+    AEGfxSetTransparency(1.0f);
+    AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
+    AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
+    AEGfxTextureSet(rockTexture, 0, 0);
+
+    // Calculate visible range (same as tiles for culling)
+    int start_row = (int)((camera_y - SCREEN_HEIGHT / 2 - TILE_SIZE) / TILE_SIZE) + MAP_HEIGHT / 2;
+    int end_row = (int)((camera_y + SCREEN_HEIGHT / 2 + TILE_SIZE) / TILE_SIZE) + MAP_HEIGHT / 2;
+
+    if (start_row < 0) start_row = 0;
+    if (end_row >= MAP_HEIGHT) end_row = MAP_HEIGHT - 1;
+
+    // Draw rocks that are on screen
+    for (int i = 0; i < rock_count; i++)
+    {
+        if (!rocks[i].active) continue;
+
+        // Simple culling - check if rock is roughly in visible range
+        int rock_row = (int)((rocks[i].y + (MAP_HEIGHT * TILE_SIZE / 2.0f)) / TILE_SIZE);
+        if (rock_row < start_row || rock_row > end_row) continue;
+
+        AEMtx33 scale, rotate, translate, transform;
+        AEMtx33Scale(&scale, 1.0f, 1.0f);
+        AEMtx33Rot(&rotate, 0.0f);
+        AEMtx33Trans(&translate, rocks[i].x, rocks[i].y);
+        AEMtx33Concat(&transform, &rotate, &scale);
+        AEMtx33Concat(&transform, &translate, &transform);
+
+        AEGfxSetTransform(transform.m);
+        AEGfxMeshDraw(rockMesh, AE_GFX_MDM_TRIANGLES);
     }
 }
 
@@ -984,11 +1120,25 @@ void RenderBackgroundFallback(AEGfxVertexList* dirtMesh, AEGfxVertexList* stoneM
     }
 }
 
-void RenderPlayer(AEGfxVertexList* playerMesh)
+void RenderPlayer(AEGfxTexture* playerTexture, AEGfxVertexList* playerMesh)
 {
-    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-    AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
-    AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
+    if (playerTexture)
+    {
+        // Render with player texture
+        AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
+        AEGfxSetBlendMode(AE_GFX_BM_BLEND);
+        AEGfxTextureSet(playerTexture, 0, 0);  // Use player texture
+        AEGfxSetTransparency(1.0f);
+        AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
+        AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+    else
+    {
+        // Fallback color mode
+        AEGfxSetRenderMode(AE_GFX_RM_COLOR);
+        AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
+        AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
+    }
 
     AEMtx33 scale, rotate, translate, transform;
     AEMtx33Scale(&scale, 1.0f, 1.0f);
@@ -1264,149 +1414,10 @@ void RenderShopTrigger(AEGfxVertexList* triggerMesh)
     AEGfxSetTransform(transform.m);
     AEGfxMeshDraw(triggerMesh, AE_GFX_MDM_TRIANGLES);
 }
-//
-//
-//void RenderShopPopup(AEGfxVertexList* backgroundImageMesh, AEGfxTexture* backgroundTexture,
-//    AEGfxVertexList* upgradeBoxMesh, AEGfxVertexList* borderMesh,
-//    AEGfxTexture* upgrade1Tex, AEGfxTexture* upgrade2Tex,
-//    AEGfxTexture* upgrade3Tex, AEGfxTexture* upgrade4Tex, s8 font_id)
-//{
-//    // Switch to screen space
-//    AEGfxSetCamPosition(0.0f, 0.0f);
-//
-//    // Draw background image ONLY (no overlay)
-//    if (backgroundTexture && backgroundImageMesh)
-//    {
-//        AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
-//        AEGfxSetBlendMode(AE_GFX_BM_BLEND);
-//        AEGfxSetTransparency(1.0f);
-//        AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
-//        AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
-//        AEGfxTextureSet(backgroundTexture, 0, 0);
-//
-//        AEMtx33 scale, rotate, translate, transform;
-//        AEMtx33Scale(&scale, 1.0f, 1.0f);
-//        AEMtx33Rot(&rotate, 0.0f);
-//        AEMtx33Trans(&translate, 0.0f, 0.0f);
-//        AEMtx33Concat(&transform, &rotate, &scale);
-//        AEMtx33Concat(&transform, &translate, &transform);
-//
-//        AEGfxSetTransform(transform.m);
-//        AEGfxMeshDraw(backgroundImageMesh, AE_GFX_MDM_TRIANGLES);
-//    }
-//
-//   
-//
-//    // Calculate positions for 4 boxes
-//    float total_width = (upgrade_box_width * 4) + (upgrade_box_spacing * 3);
-//    float start_x = -total_width / 2.0f + upgrade_box_width / 2.0f;
-//    float box_y = 50.0f;
-//
-//    AEMtx33 scale, rotate, translate, transform;
-//    AEMtx33Scale(&scale, 1.0f, 1.0f);
-//    AEMtx33Rot(&rotate, 0.0f);
-//
-//    //// Draw 4 upgrade boxes with textures AND borders
-//    //AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
-//    //AEGfxSetBlendMode(AE_GFX_BM_BLEND);
-//    //AEGfxSetTransparency(1.0f);
-//
-//    //// Box 1 - Pick/Shovel & speed
-//    //float box1_x = start_x;
-//    //if (upgrade1Tex)
-//    //{
-//    //    AEGfxTextureSet(upgrade1Tex, 0, 0);
-//    //    AEMtx33Trans(&translate, box1_x, box_y);
-//    //    AEMtx33Concat(&transform, &rotate, &scale);
-//    //    AEMtx33Concat(&transform, &translate, &transform);
-//    //    AEGfxSetTransform(transform.m);
-//    //    AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
-//    //}
-//    //AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-//    //AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
-//    //AEGfxSetTransform(transform.m);
-//    //AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
-//
-//    //// Box 2 - Oxygen Level
-//    //float box2_x = start_x + (upgrade_box_width + upgrade_box_spacing);
-//    //AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
-//    //if (upgrade2Tex)
-//    //{
-//    //    AEGfxTextureSet(upgrade2Tex, 0, 0);
-//    //    AEMtx33Trans(&translate, box2_x, box_y);
-//    //    AEMtx33Concat(&transform, &rotate, &scale);
-//    //    AEMtx33Concat(&transform, &translate, &transform);
-//    //    AEGfxSetTransform(transform.m);
-//    //    AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
-//    //}
-//    //AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-//    //AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
-//    //AEGfxSetTransform(transform.m);
-//    //AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
-//
-//    //// Box 3 - Sanity Level
-//    //float box3_x = start_x + (upgrade_box_width + upgrade_box_spacing) * 2;
-//    //AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
-//    //if (upgrade3Tex)
-//    //{
-//    //    AEGfxTextureSet(upgrade3Tex, 0, 0);
-//    //    AEMtx33Trans(&translate, box3_x, box_y);
-//    //    AEMtx33Concat(&transform, &rotate, &scale);
-//    //    AEMtx33Concat(&transform, &translate, &transform);
-//    //    AEGfxSetTransform(transform.m);
-//    //    AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
-//    //}
-//    //AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-//    //AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
-//    //AEGfxSetTransform(transform.m);
-//    //AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
-//
-//    //// Box 4 - Light Range
-//    //float box4_x = start_x + (upgrade_box_width + upgrade_box_spacing) * 3;
-//    //AEGfxSetRenderMode(AE_GFX_RM_TEXTURE);
-//    //if (upgrade4Tex)
-//    //{
-//    //    AEGfxTextureSet(upgrade4Tex, 0, 0);
-//    //    AEMtx33Trans(&translate, box4_x, box_y);
-//    //    AEMtx33Concat(&transform, &rotate, &scale);
-//    //    AEMtx33Concat(&transform, &translate, &transform);
-//    //    AEGfxSetTransform(transform.m);
-//    //    AEGfxMeshDraw(upgradeBoxMesh, AE_GFX_MDM_TRIANGLES);
-//    //}
-//    //AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-//    //AEGfxSetColorToMultiply(0.7f, 0.65f, 0.6f, 1.0f);
-//    //AEGfxSetTransform(transform.m);
-//    //AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
-//
-//    //// Draw labels below each box
-//    //if (font_id >= 0)
-//    //{
-//    //    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-//    //    AEGfxSetBlendMode(AE_GFX_BM_BLEND);
-//    //    AEGfxSetTransparency(1.0f);
-//
-//    //    // Label 1
-//    //    AEGfxPrint(font_id, (char*)"Pick/Shovel &", -0.55f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-//    //    AEGfxPrint(font_id, (char*)"speed", -0.48f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-//
-//    //    // Label 2
-//    //    AEGfxPrint(font_id, (char*)"Oxygen", -0.20f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-//    //    AEGfxPrint(font_id, (char*)"Level", -0.20f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-//
-//    //    // Label 3
-//    //    AEGfxPrint(font_id, (char*)"Sanity", 0.09f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-//    //    AEGfxPrint(font_id, (char*)"Level", 0.09f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-//
-//    //    // Label 4
-//    //    AEGfxPrint(font_id, (char*)"Light", 0.38f, -0.25f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-//    //    AEGfxPrint(font_id, (char*)"Range", 0.38f, -0.35f, 1.0f, 0.9f, 0.85f, 0.75f, 1.0f);
-//    //}
-//}
-//
 
 void RenderShopPrompt(s8 font_id)
 {
-    if (font_id < 0 || !player_in_shop_zone || shop_is_open) return;
+    if (font_id < 0 || !player_in_shop_zone || shop_is_active) return;
 
     AEGfxSetCamPosition(0.0f, 0.0f);
     AEGfxSetRenderMode(AE_GFX_RM_COLOR);
@@ -1417,287 +1428,175 @@ void RenderShopPrompt(s8 font_id)
     AEGfxPrint(font_id, (char*)"Press ENTER or LEFT CLICK to open shop", -0.4f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-
-
-//void RenderUI()
-//{
-//    AEGfxSetCamPosition(0.0f, 0.0f);
-//    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-//    AEGfxSetBlendColor(1.0f, 1.0f, 1.0f, 1.0f);
-//
-//    char text[128];
-//
-//    sprintf_s(text, 128, "Depth: %dm", depth);
-//    AEGfxPrint(-750.0f, 400.0f, 1.5f, text);
-//
-//    sprintf_s(text, 128, "Max Depth: %dm", max_depth);
-//    AEGfxPrint(-750.0f, 350.0f, 1.0f, text);
-//
-//    sprintf_s(text, 128, "Position: (%.0f, %.0f)", player_x, player_y);
-//    AEGfxPrint(-750.0f, 300.0f, 1.0f, text);
-//
-//    AEGfxPrint(-650.0f, -420.0f, 1.0f, "WASD: Move  |  Click: Mine  |  ESC: Exit");
-//}
-
 // ---------------------------------------------------------------------------
+// GAME STATE FUNCTIONS  (called from mainmenu.cpp via GameStates.h)
 // ---------------------------------------------------------------------------
-// GAME STATE SYSTEM
-// ---------------------------------------------------------------------------
-enum GameState
+
+void Game_Init(void)
 {
-    GS_MAIN_GAME,
-    GS_SHOP
-};
-
-GameState current_state = GS_MAIN_GAME;
-GameState next_state = GS_MAIN_GAME;
-
-
-
-
-
-// MAIN
-
-int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-    _In_opt_ HINSTANCE hPrevInstance,
-    _In_ LPWSTR    lpCmdLine,
-    _In_ int       nCmdShow)
-{
-    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
-
-    int gGameRunning = 1;
-
-    // Initialize
-    AESysInit(hInstance, nCmdShow, (int)SCREEN_WIDTH, (int)SCREEN_HEIGHT, 1, 60, false, NULL);
-    AESysSetWindowTitle("GroundBreaker Clone - Vertical Mining");
-
-
     // Load font
-    g_font_id = AEGfxCreateFont("../Assets/liberation-mono.ttf", 24);
-    if (g_font_id < 0) {
-        // Font creation failed, use default or handle error
+    g_font_id = AEGfxCreateFont("../Assets/fonts/liberation-mono.ttf", 24);
+    if (g_font_id < 0)
         g_font_id = 0;
-    }
 
     // Generate world
     GenerateWorld();
+    InitializeTorches();
+    InitializeRocks();
 
-    // Load texture
-    AEGfxTexture* tilesetTexture = AEGfxTextureLoad("../Assets/tileset.png");
-    AEGfxTexture* oxygeniconTexture = AEGfxTextureLoad("../Assets/o2icon.png");
-	AEGfxTexture* sanityiconTexture = AEGfxTextureLoad("../Assets/sanityicon.png");
-    AEGfxTexture* bouldericonTexture = AEGfxTextureLoad("../Assets/bouldericon.png");
-    AEGfxTexture* mapiconTexture = AEGfxTextureLoad("../Assets/mapicon.png");
+    // Load textures
+    g_tilesetTexture = AEGfxTextureLoad("../Assets/tileset.png");
+    g_oxygeniconTexture = AEGfxTextureLoad("../Assets/o2icon.png");
+    g_sanityiconTexture = AEGfxTextureLoad("../Assets/sanityicon.png");
+    g_bouldericonTexture = AEGfxTextureLoad("../Assets/bouldericon.png");
+    g_mapiconTexture = AEGfxTextureLoad("../Assets/mapicon.png");
+    g_playerTexture = AEGfxTextureLoad("../Assets/player.png");
+    g_glowTexture = AEGfxTextureLoad("../Assets/glow_texture.png");
+    g_rockTexture = AEGfxTextureLoad("../Assets/mineable_rock.png");
 
-	//// Shop Upgrade Textures
- //   // Load shop textures (add after your existing texture loads)
- //   AEGfxTexture* upgrade1Texture = AEGfxTextureLoad("../Assets/pickaxeicon.png");
- //   AEGfxTexture* upgrade2Texture = AEGfxTextureLoad("../Assets/o2icon.png");
- //   AEGfxTexture* upgrade3Texture = AEGfxTextureLoad("../Assets/sanityicon.png");
- //   AEGfxTexture* upgrade4Texture = AEGfxTextureLoad("../Assets/torchicon.png");
- //   AEGfxTexture* shopBackgroundTexture = AEGfxTextureLoad("../Assets/shopui.png");
-
-
-    AEGfxVertexList* dirtMesh;
-    AEGfxVertexList* stoneMesh;
-    int texture_loaded = 0;
-
-    if (tilesetTexture)
+    // Create tile meshes
+    g_texture_loaded = 0;
+    if (g_tilesetTexture)
     {
-        // Texture loaded - use spritesheet
-        dirtMesh = CreateSpritesheetTileMesh(DIRT_SPRITE_POSITION, TILE_SIZE);
-        stoneMesh = CreateSpritesheetTileMesh(STONE_SPRITE_POSITION, TILE_SIZE);
-        texture_loaded = 1;
+        g_dirtMesh = CreateSpritesheetTileMesh(DIRT_SPRITE_POSITION, TILE_SIZE);
+        g_stoneMesh = CreateSpritesheetTileMesh(STONE_SPRITE_POSITION, TILE_SIZE);
+        g_wallMesh = CreateSpritesheetTileMesh(WALL_SPRITE_POSITION, TILE_SIZE);
+        g_texture_loaded = 1;
     }
     else
     {
-        // Fallback - use colored rectangles
-        dirtMesh = CreateRectangleMesh(TILE_SIZE, TILE_SIZE, 0xFF8B4513);   // Brown
-        stoneMesh = CreateRectangleMesh(TILE_SIZE, TILE_SIZE, 0xFF808080);  // Gray
-        texture_loaded = 0;
+        g_dirtMesh = CreateRectangleMesh(TILE_SIZE, TILE_SIZE, 0xFF8B4513);
+        g_stoneMesh = CreateRectangleMesh(TILE_SIZE, TILE_SIZE, 0xFF808080);
+    }
+
+    if (g_playerTexture)
+    {
+        g_playerMesh = CreateTextureMesh(player_width, player_height);
+    }
+    else
+    {
+        g_playerMesh = CreateRectangleMesh(player_width, player_height, 0xFF0000FF);
     }
 
     // Create other meshes
-    AEGfxVertexList* playerMesh = CreateRectangleMesh(player_width, player_height, 0xFF00AAFF);
-    AEGfxVertexList* cursorMesh = CreateRectangleMesh(TILE_SIZE, TILE_SIZE, 0x80FFFF00);
-    AEGfxVertexList* oxygeniconMesh = Createoxygenicon(oxygeniconwidth, oxygeniconheight);
-	AEGfxVertexList* sanityiconMesh = Createsanityicon(sanityiconwidth, sanityiconheight);
-	AEGfxVertexList* bouldericonMesh = Createbouldericon(bouldericonwidth, bouldericonheight);
-    AEGfxVertexList* mapiconMesh = Createmapicon(mapiconwidth, mapiconheight);
+    g_cursorMesh = CreateRectangleMesh(TILE_SIZE, TILE_SIZE, 0x80FFFF00);
+    g_glowMesh = CreateGlowMesh(256.0f);
+    g_rockMesh = CreateGlowMesh(TILE_SIZE);
+    g_oxygeniconMesh = Createoxygenicon(oxygeniconwidth, oxygeniconheight);
+    g_sanityiconMesh = Createsanityicon(sanityiconwidth, sanityiconheight);
+    g_bouldericonMesh = Createbouldericon(bouldericonwidth, bouldericonheight);
+    g_mapiconMesh = Createmapicon(mapiconwidth, mapiconheight);
 
-	// Create side blackout meshes
-    float playable_width = MAP_WIDTH * TILE_SIZE;  // 25 * 64 = 1600
-    float blackout_width = (SCREEN_WIDTH - playable_width) / 2.0f;  // Width of each side bar
+    float playable_width = MAP_WIDTH * TILE_SIZE;
+    float blackout_width = (SCREEN_WIDTH - playable_width) / 2.0f;
 
-    AEGfxVertexList* leftBlackoutMesh = CreateSideBlackoutMesh(blackout_width, SCREEN_HEIGHT);
-    AEGfxVertexList* rightBlackoutMesh = CreateSideBlackoutMesh(blackout_width, SCREEN_HEIGHT);
+    g_leftBlackoutMesh = CreateSideBlackoutMesh(blackout_width, SCREEN_HEIGHT);
+    g_rightBlackoutMesh = CreateSideBlackoutMesh(blackout_width, SCREEN_HEIGHT);
 
-    // CREATE SAFEZONE BORDER MESH
-    AEGfxVertexList* safezoneBorderMesh = CreateSafezoneBorder(
-        800.0f,  // Width (safezone_x_max - safezone_x_min)
-        600.0f,  // Height (safezone_y_max - safezone_y_min)
-        1.0f     // Border thickness in pixels
-    );
+    g_safezoneBorderMesh = CreateSafezoneBorder(800.0f, 600.0f, 1.0f);
+    g_shopTriggerMesh = CreateShopTriggerMesh(shop_trigger_width, shop_trigger_height);
 
-    //// Create shop meshes
-    //AEGfxVertexList* shopTriggerMesh = CreateShopTriggerMesh(shop_trigger_width, shop_trigger_height);
-    //AEGfxVertexList* shopBackgroundImageMesh = CreateShopBackgroundImageMesh(shop_popup_width, shop_popup_height);
-    //AEGfxVertexList* upgradeBoxMesh = CreateUpgradeBoxMesh(upgrade_box_width, upgrade_box_height);
-    //AEGfxVertexList* upgradeBoxBorderMesh = CreateUpgradeBoxBorderMesh(upgrade_box_width, upgrade_box_height, upgrade_border_thickness);
-    AEGfxVertexList* shopTriggerMesh = CreateShopTriggerMesh(shop_trigger_width, shop_trigger_height);
+    // Load shop system (textures, meshes, font)
+    Shop_Load();
 
-
-
-    // Set initial player position (on surface)
+    // Set initial player position
     player_x = 0.0f;
     player_y = (5 * TILE_SIZE) - (MAP_HEIGHT * TILE_SIZE / 2.0f) - 100.0f;
 
-    Shop_Load();
+    // Reset oxygen
+    oxygen_percentage = 100.0f;
+    oxygen_max = 100.0f;
+}
 
-    // GAME LOOP
-    while (gGameRunning)
+void Game_Update(void)
+{
+    float dt = AEFrameRateControllerGetFrameTime();
+
+    UpdatePhysics(dt);
+    UpdateMining(dt);
+    UpdateCamera(dt);
+    UpdateOxygenSystem(dt);
+    UpdateShopSystem(dt);
+}
+
+void Game_Draw(void)
+{
+    AEGfxSetBackgroundColor(0.0f, 0.0f, 0.0f);
+    AEGfxSetCamPosition(camera_x, camera_y);
+
+    if (g_texture_loaded)
+        RenderBackground(g_tilesetTexture, g_dirtMesh, g_stoneMesh, g_wallMesh);
+
+    if (g_glowTexture)
+        RenderLighting(g_glowTexture, g_glowMesh);
+    if (g_rockTexture)
+        RenderRocks(g_rockTexture, g_rockMesh);
+
+    RenderMiningCursor(g_cursorMesh);
+    RenderPlayer(g_playerTexture, g_playerMesh);
+    RenderSideBlackout(g_leftBlackoutMesh, g_rightBlackoutMesh);
+    RenderSafeZone(g_safezoneBorderMesh);
+
+    if (g_mapiconMesh)
+        Rendermapicon(g_mapiconTexture, g_mapiconMesh, mapiconwidth, mapiconheight);
+    if (g_oxygeniconMesh)
+        Renderoxygenicon(g_oxygeniconTexture, g_oxygeniconMesh, oxygeniconwidth, oxygeniconheight);
+    if (g_sanityiconMesh)
+        Rendersanityicon(g_sanityiconTexture, g_sanityiconMesh, sanityiconwidth, sanityiconheight);
+    if (g_bouldericonMesh)
+        Renderbouldericon(g_bouldericonTexture, g_bouldericonMesh, bouldericonwidth, bouldericonheight);
+
+    if (!shop_is_active)
     {
-        AESysFrameStart();
+        RenderShopTrigger(g_shopTriggerMesh);
+        RenderShopPrompt(g_font_id);
 
-        // Check for state change
-        if (current_state != next_state)
-        {
-            // Free current state
-            if (current_state == GS_SHOP)
-            {
-                Shop_Free();
-            }
+        RenderOxygenUI(g_font_id);
+    }
+    else  // shop_is_active == 1
+    {
+        Shop_Draw();  // Render the shop UI from shop.cpp
+    }
+}
 
-            // Initialize next state
-            current_state = next_state;
+void Game_Kill(void)
+{
+    // Free meshes
+    if (g_dirtMesh) { AEGfxMeshFree(g_dirtMesh); g_dirtMesh = NULL; }
+    if (g_stoneMesh) { AEGfxMeshFree(g_stoneMesh); g_stoneMesh = NULL; }
+    if (g_wallMesh) { AEGfxMeshFree(g_wallMesh); g_wallMesh = NULL; }
+    if (g_glowMesh) { AEGfxMeshFree(g_glowMesh); g_glowMesh = NULL; }
+    if (g_rockMesh) { AEGfxMeshFree(g_rockMesh); g_rockMesh = NULL; }
+    if (g_playerMesh) { AEGfxMeshFree(g_playerMesh); g_playerMesh = NULL; }
+    if (g_cursorMesh) { AEGfxMeshFree(g_cursorMesh); g_cursorMesh = NULL; }
+    if (g_oxygeniconMesh) { AEGfxMeshFree(g_oxygeniconMesh); g_oxygeniconMesh = NULL; }
+    if (g_sanityiconMesh) { AEGfxMeshFree(g_sanityiconMesh); g_sanityiconMesh = NULL; }
+    if (g_bouldericonMesh) { AEGfxMeshFree(g_bouldericonMesh); g_bouldericonMesh = NULL; }
+    if (g_mapiconMesh) { AEGfxMeshFree(g_mapiconMesh); g_mapiconMesh = NULL; }
+    if (g_leftBlackoutMesh) { AEGfxMeshFree(g_leftBlackoutMesh); g_leftBlackoutMesh = NULL; }
+    if (g_rightBlackoutMesh) { AEGfxMeshFree(g_rightBlackoutMesh); g_rightBlackoutMesh = NULL; }
+    if (g_safezoneBorderMesh) { AEGfxMeshFree(g_safezoneBorderMesh); g_safezoneBorderMesh = NULL; }
+    if (g_shopTriggerMesh) { AEGfxMeshFree(g_shopTriggerMesh); g_shopTriggerMesh = NULL; }
+    // Shop meshes cleaned up in Shop_Unload()
 
-            if (current_state == GS_SHOP)
-            {
-                Shop_Initialize();
-            }
-        }
+    // Unload textures
+    if (g_tilesetTexture) { AEGfxTextureUnload(g_tilesetTexture);     g_tilesetTexture = NULL; }
+    if (g_oxygeniconTexture) { AEGfxTextureUnload(g_oxygeniconTexture);  g_oxygeniconTexture = NULL; }
+    if (g_sanityiconTexture) { AEGfxTextureUnload(g_sanityiconTexture);  g_sanityiconTexture = NULL; }
+    if (g_bouldericonTexture) { AEGfxTextureUnload(g_bouldericonTexture); g_bouldericonTexture = NULL; }
+    if (g_mapiconTexture) { AEGfxTextureUnload(g_mapiconTexture);     g_mapiconTexture = NULL; }
+    if (g_playerTexture) { AEGfxTextureUnload(g_playerTexture);      g_playerTexture = NULL; }
+    if (g_glowTexture) { AEGfxTextureUnload(g_glowTexture);        g_glowTexture = NULL; }
+    if (g_rockTexture) { AEGfxTextureUnload(g_rockTexture);        g_rockTexture = NULL; }
+    // Shop textures cleaned up in Shop_Unload()
 
-        float dt = AEFrameRateControllerGetFrameTime();
-
-        // Update current state
-        if (current_state == GS_MAIN_GAME)
-        {
-            // Main game updates
-            UpdatePhysics(dt);
-            UpdateMining(dt);
-            UpdateCamera(dt);
-            UpdateOxygenSystem(dt);
-            UpdateShopSystem(dt);
-
-            // Check if player wants to enter shop
-            if (player_in_shop_zone)
-            {
-                if (AEInputCheckTriggered(AEVK_RETURN) || AEInputCheckTriggered(AEVK_LBUTTON))
-                {
-                    next_state = GS_SHOP;
-                }
-            }
-
-            // Render main game
-            AEGfxSetBackgroundColor(0.0f, 0.0f, 0.0f);
-            AEGfxSetCamPosition(camera_x, camera_y);
-
-            if (texture_loaded)
-                RenderBackground(tilesetTexture, dirtMesh, stoneMesh);
-            else
-                RenderBackgroundFallback(dirtMesh, stoneMesh);
-
-            RenderMiningCursor(cursorMesh);
-            RenderPlayer(playerMesh);
-            RenderSideBlackout(leftBlackoutMesh, rightBlackoutMesh);
-            RenderSafeZone(safezoneBorderMesh);
-
-            // Draw icons
-            Rendermapicon(mapiconTexture, mapiconMesh, mapiconwidth, mapiconheight);
-            Renderoxygenicon(oxygeniconTexture, oxygeniconMesh, oxygeniconwidth, oxygeniconheight);
-            Rendersanityicon(sanityiconTexture, sanityiconMesh, sanityiconwidth, sanityiconheight);
-            Renderbouldericon(bouldericonTexture, bouldericonMesh, bouldericonwidth, bouldericonheight);
-
-            // Draw shop trigger box
-            RenderShopTrigger(shopTriggerMesh);
-            RenderShopPrompt(g_font_id);
-
-            RenderOxygenUI(g_font_id);
-            //RenderUI();
-        }
-        else if (current_state == GS_SHOP)
-        {
-            // Shop state update
-            Shop_Update();
-
-            // Check if player exits shop
-            if (AEInputCheckTriggered(AEVK_ESCAPE))
-            {
-                next_state = GS_MAIN_GAME;
-            }
-
-            // Render shop
-            Shop_Draw();
-        }
-
-        // Exit game
-        if (AEInputCheckTriggered(AEVK_ESCAPE) && current_state == GS_MAIN_GAME)
-        {
-            if (!AESysDoesWindowExist())
-                gGameRunning = 0;
-        }
-        //Shop_Unload();
-        AESysFrameEnd();
+    // Destroy font
+    if (g_font_id >= 0)
+    {
+        AEGfxDestroyFont(g_font_id);
+        g_font_id = -1;
     }
 
-
-
-   // Cleanup
-    AEGfxMeshFree(dirtMesh);
-    AEGfxMeshFree(stoneMesh);
-    AEGfxMeshFree(playerMesh);
-    AEGfxMeshFree(cursorMesh);
-    AEGfxMeshFree(leftBlackoutMesh);
-    AEGfxMeshFree(rightBlackoutMesh);
-    AEGfxMeshFree(safezoneBorderMesh);  // FREE THE BORDER MESH
-    AEGfxMeshFree(oxygeniconMesh);
-    AEGfxMeshFree(sanityiconMesh);
-    AEGfxMeshFree(bouldericonMesh);
-    AEGfxMeshFree(mapiconMesh);
-    //// Cleanup shop meshes
-    //AEGfxMeshFree(shopTriggerMesh);
-    //AEGfxMeshFree(upgradeBoxMesh);
-    //AEGfxMeshFree(upgradeBoxBorderMesh);
-
-    //// Unload shop textures
-    //if (upgrade1Texture) AEGfxTextureUnload(upgrade1Texture);
-    //if (upgrade2Texture) AEGfxTextureUnload(upgrade2Texture);
-    //if (upgrade3Texture) AEGfxTextureUnload(upgrade3Texture);
-    //if (upgrade4Texture) AEGfxTextureUnload(upgrade4Texture);
-
-
-
-    if (tilesetTexture)
-        AEGfxTextureUnload(tilesetTexture);
-    
-    if (oxygeniconTexture)
-        AEGfxTextureUnload(oxygeniconTexture);
-
-	if (sanityiconTexture)
-		AEGfxTextureUnload(sanityiconTexture);
-
-	if (bouldericonTexture)
-		AEGfxTextureUnload(bouldericonTexture);
-
-	if (mapiconTexture)
-		AEGfxTextureUnload(mapiconTexture);
-
-    if (g_font_id >= 0)
-        AEGfxDestroyFont(g_font_id);
-
-    AESysExit();
-
-    return 0;
+    // Unload shop system
+    Shop_Unload();
 }
