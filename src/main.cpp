@@ -34,7 +34,7 @@
 
 // Mineable rocks configurations
 #define MAX_ROCKS 500
-#define ROCK_SPAWN_CHANCE 0.15f  // 5% chance to spawn a rock in stone tile
+#define ROCK_SPAWN_CHANCE 0.2f  
 
 // ---------------------------------------------------------------------------
 
@@ -85,7 +85,6 @@ typedef struct {
     float x;
     float y;
     int active;
-    int sprite_index;
 } Rock;
 
 // ---------------------------------------------------------------------------
@@ -105,14 +104,20 @@ float player_width = 75.0f;
 float player_height = 75.0f;
 float player_speed = 5.0f;
 
-// Mining
+// Mining Indicator
 float mining_range = 120.0f;
 int currently_mining_row = -1;
 int currently_mining_col = -1;
 
+// Rock Mining
+int current_mining_rock = -1; // Index of rock being mined (-1 = none)
+float rock_mining_timer = 0.0f; // Time spent mining current rock
+float rock_mining_duration = 2.0f; // 2 seconds to mine a rock
+
 // Stats
 int depth = 0;
 int max_depth = 0;
+int rocks_mined = 0;
 
 // Lighting
 Torch torches[MAX_TORCHES];
@@ -578,8 +583,8 @@ void InitializeRocks()
 {
     rock_count = 0;
 
-    for (int row = 20; row < MAP_HEIGHT; row += 5) {
-        for (int col = 3; col < MAP_WIDTH; col += 2)
+    for (int row = 15; row < MAP_HEIGHT; row += 5) {
+        for (int col = 1; col < MAP_WIDTH; col += 2)
         {
             if (rock_count >= MAX_ROCKS) break;
             // Place rocks in stone layers
@@ -594,7 +599,6 @@ void InitializeRocks()
                     rocks[rock_count].x = rock_x;
                     rocks[rock_count].y = rock_y;
                     rocks[rock_count].active = 1;
-                    rocks[rock_count].sprite_index = rand() % 3;  // Random rock variation (0-2)
                     rock_count++;
                 }
             }
@@ -649,6 +653,17 @@ int CheckTileCollision(float x, float y)
                     return 1;  // Collision detected
                 }
             }
+        }
+    }
+    // Check collision with active rocks
+    for (int i = 0; i < rock_count; i++)
+    {
+        if (!rocks[i].active) continue;
+
+        if (CheckCollisionRectangle(x, y, player_width, player_height,
+            rocks[i].x, rocks[i].y, TILE_SIZE, TILE_SIZE))
+        {
+            return 1;  // Collision with rock detected
         }
     }
 
@@ -735,37 +750,69 @@ void UpdateMining(float dt)
     int target_row, target_col;
     GetTileAtPosition(mouse_world_x, mouse_world_y, &target_row, &target_col);
 
-    // Check if can mine
-    int can_mine = 0;
-    if (IsTileValid(target_row, target_col))
+    // Check if can mine rocks
+    int can_mine_rock = 0;
+    int target_rock = -1;
+    for (int i = 0; i < rock_count; i++)
     {
-        float tile_x, tile_y;
-        GetTileWorldPosition(target_row, target_col, &tile_x, &tile_y);
+        if (!rocks[i].active) continue;
 
-        float dist = sqrtf((tile_x - player_x) * (tile_x - player_x) +
-            (tile_y - player_y) * (tile_y - player_y));
+        float dist = sqrtf((rocks[i].x - player_x) * (rocks[i].x - player_x) +
+            (rocks[i].y - player_y) * (rocks[i].y - player_y));
 
-        int tile_type = tileMap[target_row][target_col];
-
-        if (dist <= mining_range && IsTileSolid(tile_type))
+        if (dist <= mining_range)
         {
-            can_mine = 1;
+            // Check if mouse is over this rock
+            if (CheckCollisionRectangle(mouse_world_x, mouse_world_y, 1.0f, 1.0f,
+                rocks[i].x, rocks[i].y, TILE_SIZE, TILE_SIZE))
+            {
+                can_mine_rock = 1;
+                target_rock = i;
+                break;
+            }
         }
     }
 
-    // Mine on click
-    if (can_mine && AEInputCheckCurr(AEVK_LBUTTON))
+    // Mining logic
+    if (AEInputCheckCurr(AEVK_LBUTTON))
     {
-        currently_mining_row = target_row;
-        currently_mining_col = target_col;
+        if (can_mine_rock)
+        {
+            // Mining a rock
+            if (current_mining_rock != target_rock)
+            {
+                // Started mining a new rock
+                current_mining_rock = target_rock;
+                rock_mining_timer = 0.0f;
+            }
+            else
+            {
+                // Continue mining the same rock
+                rock_mining_timer += dt;
 
-        // Instant mining (you can add mining time later)
-        tileMap[target_row][target_col] = TILE_EMPTY;
+                // Check if mining is complete
+                if (rock_mining_timer >= rock_mining_duration)
+                {
+                    // Rock mined successfully
+                    rocks[current_mining_rock].active = 0;
+                    rocks_mined++;
+                    current_mining_rock = -1;
+                    rock_mining_timer = 0.0f;
+                }
+            }
+        }
+        else
+        {
+            // Not mining anything
+            current_mining_rock = -1;
+            rock_mining_timer = 0.0f;
+        }
     }
     else
     {
-        currently_mining_row = -1;
-        currently_mining_col = -1;
+        // Mouse button released - reset mining
+        current_mining_rock = -1;
+        rock_mining_timer = 0.0f;
     }
 }
 
@@ -1159,34 +1206,196 @@ void RenderMiningCursor(AEGfxVertexList* cursorMesh)
     float mouse_world_x = (float)mouse_screen_x - SCREEN_WIDTH / 2 + camera_x;
     float mouse_world_y = SCREEN_HEIGHT / 2 - (float)mouse_screen_y + camera_y;
 
-    int target_row, target_col;
-    GetTileAtPosition(mouse_world_x, mouse_world_y, &target_row, &target_col);
-
-    if (IsTileValid(target_row, target_col))
+    // ---------- check if mouse is over a rock within mining range ----------
+    int hovered_rock = -1;
+    for (int i = 0; i < rock_count; i++)
     {
-        float tile_x, tile_y;
-        GetTileWorldPosition(target_row, target_col, &tile_x, &tile_y);
+        if (!rocks[i].active) continue;
 
-        float dist = sqrtf((tile_x - player_x) * (tile_x - player_x) +
-            (tile_y - player_y) * (tile_y - player_y));
+        float dist = sqrtf((rocks[i].x - player_x) * (rocks[i].x - player_x) +
+            (rocks[i].y - player_y) * (rocks[i].y - player_y));
 
-        int tile_type = tileMap[target_row][target_col];
-
-        if (dist <= mining_range && IsTileSolid(tile_type))
+        if (dist <= mining_range &&
+            CheckCollisionRectangle(mouse_world_x, mouse_world_y, 1.0f, 1.0f,
+                rocks[i].x, rocks[i].y, TILE_SIZE, TILE_SIZE))
         {
-            AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-            AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
+            hovered_rock = i;
+            break;
+        }
+    }
 
-            AEMtx33 scale, rotate, translate, transform;
-            AEMtx33Scale(&scale, 1.1f, 1.1f);
-            AEMtx33Rot(&rotate, 0.0f);
-            AEMtx33Trans(&translate, tile_x, tile_y);
-            AEMtx33Concat(&transform, &rotate, &scale);
-            AEMtx33Concat(&transform, &translate, &transform);
+    // ---------- dashed crosshair border on hovered rock ----------
+    if (hovered_rock >= 0)
+    {
+        AEGfxSetCamPosition(camera_x, camera_y);
+        AEGfxSetRenderMode(AE_GFX_RM_COLOR);
+        AEGfxSetBlendMode(AE_GFX_BM_BLEND);
+        AEGfxSetTransparency(1.0f);
+        AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
+        AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
 
-            AEGfxSetTransform(transform.m);
+        float cx = rocks[hovered_rock].x;   // rock centre x
+        float cy = rocks[hovered_rock].y;   // rock centre y
+        float hw = TILE_SIZE / 2.0f;        // half-width  (32)
+        float hh = TILE_SIZE / 2.0f;        // half-height (32)
+
+        // --- dash parameters (tune these to taste) ---
+        float dash_len = 10.0f;   // length of each dash segment
+        float gap_len = 6.0f;   // length of each gap
+        float thickness = 2.0f;   // pixel thickness of the border
+
+        // number of dashes that fit along one edge
+        float repeat = dash_len + gap_len;               // 16
+        int   num_dashes = (int)(TILE_SIZE / repeat);       // 4
+
+        AEMtx33 seg;
+
+        // ---- TOP edge   (y = cy + hh, segments run left-right) ----
+        for (int i = 0; i < num_dashes; i++)
+        {
+            float offset = -hw + i * repeat + gap_len * 0.5f;
+            AEMtx33Scale(&seg, dash_len, thickness);
+            AEMtx33Trans(&seg, cx + offset + dash_len * 0.5f,
+                cy + hh - thickness * 0.5f);
+            AEGfxSetTransform(seg.m);
             AEGfxMeshDraw(cursorMesh, AE_GFX_MDM_TRIANGLES);
         }
+
+        // ---- BOTTOM edge (y = cy - hh) ----
+        for (int i = 0; i < num_dashes; i++)
+        {
+            float offset = -hw + i * repeat + gap_len * 0.5f;
+            AEMtx33Scale(&seg, dash_len, thickness);
+            AEMtx33Trans(&seg, cx + offset + dash_len * 0.5f,
+                cy - hh + thickness * 0.5f);
+            AEGfxSetTransform(seg.m);
+            AEGfxMeshDraw(cursorMesh, AE_GFX_MDM_TRIANGLES);
+        }
+
+        // ---- LEFT edge  (x = cx - hw, segments run bottom-top) ----
+        for (int i = 0; i < num_dashes; i++)
+        {
+            float offset = -hh + i * repeat + gap_len * 0.5f;
+            AEMtx33Scale(&seg, thickness, dash_len);
+            AEMtx33Trans(&seg, cx - hw + thickness * 0.5f,
+                cy + offset + dash_len * 0.5f);
+            AEGfxSetTransform(seg.m);
+            AEGfxMeshDraw(cursorMesh, AE_GFX_MDM_TRIANGLES);
+        }
+
+        // ---- RIGHT edge (x = cx + hw) ----
+        for (int i = 0; i < num_dashes; i++)
+        {
+            float offset = -hh + i * repeat + gap_len * 0.5f;
+            AEMtx33Scale(&seg, thickness, dash_len);
+            AEMtx33Trans(&seg, cx + hw - thickness * 0.5f,
+                cy + offset + dash_len * 0.5f);
+            AEGfxSetTransform(seg.m);
+            AEGfxMeshDraw(cursorMesh, AE_GFX_MDM_TRIANGLES);
+        }
+    }
+}
+
+void RenderRockMiningProgress()
+{
+    // Early exit if not mining a rock
+    if (current_mining_rock < 0 || current_mining_rock >= rock_count || !rocks[current_mining_rock].active)
+    {
+        return;
+    }
+
+    // Set rendering state for progress bar
+    AEGfxSetCamPosition(camera_x, camera_y);
+    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
+    AEGfxSetBlendMode(AE_GFX_BM_BLEND);
+    AEGfxSetTransparency(1.0f);
+    AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
+    AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
+    AEGfxTextureSet(NULL, 0, 0);
+
+    // Get rock position
+    float rock_x = rocks[current_mining_rock].x;
+    float rock_y = rocks[current_mining_rock].y;
+
+    // Progress bar settings
+    float bar_width = 70.0f;
+    float bar_height = 10.0f;
+    float bar_y_offset = 40.0f;  // Position above rock
+
+    // Calculate progress (0.0 to 1.0)
+    float progress = rock_mining_timer / rock_mining_duration;
+    if (progress > 1.0f) progress = 1.0f;
+    if (progress < 0.0f) progress = 0.0f;
+
+    float bar_x = rock_x;
+    float bar_y = rock_y + bar_y_offset;
+
+    // DEBUG: Print positions every 60 frames (once per second at 60fps)
+    static int debug_frame_counter = 0;
+    if (debug_frame_counter % 60 == 0)
+    {
+        printf("DEBUG - Rock #%d: (%.1f, %.1f) | Bar: (%.1f, %.1f) | Camera: (%.1f, %.1f) | Offset: %.1f | Progress: %.1f%%\n",
+            current_mining_rock, rock_x, rock_y, bar_x, bar_y, camera_x, camera_y, bar_y_offset, progress * 100.0f);
+    }
+    debug_frame_counter++;
+
+    // === DRAW WHITE BORDER ===
+    AEGfxMeshStart();
+    float border_w = (bar_width + 4.0f) / 2.0f;
+    float border_h = (bar_height + 4.0f) / 2.0f;
+    AEGfxTriAdd(-border_w, -border_h, 0xFFFFFFFF, 0.0f, 0.0f,
+        border_w, -border_h, 0xFFFFFFFF, 1.0f, 0.0f,
+        -border_w, border_h, 0xFFFFFFFF, 0.0f, 1.0f);
+    AEGfxTriAdd(border_w, -border_h, 0xFFFFFFFF, 1.0f, 0.0f,
+        border_w, border_h, 0xFFFFFFFF, 1.0f, 1.0f,
+        -border_w, border_h, 0xFFFFFFFF, 0.0f, 1.0f);
+    AEGfxVertexList* borderMesh = AEGfxMeshEnd();
+
+    AEMtx33 transform;
+    AEMtx33Trans(&transform, bar_x, bar_y);
+    AEGfxSetTransform(transform.m);
+    AEGfxMeshDraw(borderMesh, AE_GFX_MDM_TRIANGLES);
+    AEGfxMeshFree(borderMesh);
+
+    // === DRAW DARK BACKGROUND ===
+    AEGfxMeshStart();
+    float bg_w = bar_width / 2.0f;
+    float bg_h = bar_height / 2.0f;
+    AEGfxTriAdd(-bg_w, -bg_h, 0xFF222222, 0.0f, 0.0f,
+        bg_w, -bg_h, 0xFF222222, 1.0f, 0.0f,
+        -bg_w, bg_h, 0xFF222222, 0.0f, 1.0f);
+    AEGfxTriAdd(bg_w, -bg_h, 0xFF222222, 1.0f, 0.0f,
+        bg_w, bg_h, 0xFF222222, 1.0f, 1.0f,
+        -bg_w, bg_h, 0xFF222222, 0.0f, 1.0f);
+    AEGfxVertexList* bgMesh = AEGfxMeshEnd();
+
+    AEMtx33Trans(&transform, bar_x, bar_y);
+    AEGfxSetTransform(transform.m);
+    AEGfxMeshDraw(bgMesh, AE_GFX_MDM_TRIANGLES);
+    AEGfxMeshFree(bgMesh);
+
+    // === DRAW YELLOW PROGRESS BAR ===
+    if (progress > 0.01f)
+    {
+        float filled_width = bar_width * progress;
+
+        AEGfxMeshStart();
+        float prog_w = filled_width / 2.0f;
+        float prog_h = bar_height / 2.0f;
+        AEGfxTriAdd(-prog_w, -prog_h, 0xFFFFFF00, 0.0f, 0.0f,
+            prog_w, -prog_h, 0xFFFFFF00, 1.0f, 0.0f,
+            -prog_w, prog_h, 0xFFFFFF00, 0.0f, 1.0f);
+        AEGfxTriAdd(prog_w, -prog_h, 0xFFFFFF00, 1.0f, 0.0f,
+            prog_w, prog_h, 0xFFFFFF00, 1.0f, 1.0f,
+            -prog_w, prog_h, 0xFFFFFF00, 0.0f, 1.0f);
+        AEGfxVertexList* progMesh = AEGfxMeshEnd();
+
+        // Position from left edge
+        float prog_x = bar_x - (bar_width / 2.0f) + (filled_width / 2.0f);
+        AEMtx33Trans(&transform, prog_x, bar_y);
+        AEGfxSetTransform(transform.m);
+        AEGfxMeshDraw(progMesh, AE_GFX_MDM_TRIANGLES);
+        AEGfxMeshFree(progMesh);
     }
 }
 
@@ -1356,6 +1565,31 @@ void RenderOxygenUI(s8 g_font_id)
     AEGfxPrint(g_font_id, text, 0.16f, -0.95f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);// adjustb for location of text
 }
 
+void RenderRockCountUI(s8 font_id)
+{
+    if (font_id < 0) return;
+
+    // Set camera to 0,0 for fixed UI (doesn't move with game world)
+    AEGfxSetCamPosition(0.0f, 0.0f);
+    AEGfxSetBlendMode(AE_GFX_BM_BLEND);
+
+    char text[64];
+    sprintf_s(text, 64, "x%d", rocks_mined);
+
+    // Fixed screen position (normalized coordinates -1 to 1)
+    // X: 0.35 = right side (near boulder icon)
+    // Y: -0.95 = bottom of screen
+    AEGfxPrint(font_id, text, 0.35f, -0.95f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+}
+
+
+
+
+
+
+
+
+
 
 
 void RenderSafeZone(AEGfxVertexList* borderMesh)
@@ -1479,7 +1713,7 @@ void Game_Init(void)
     }
 
     // Create other meshes
-    g_cursorMesh = CreateRectangleMesh(TILE_SIZE, TILE_SIZE, 0x80FFFF00);
+    g_cursorMesh = CreateRectangleMesh(1.0f, 1.0f, 0xFFFFFFFF);
     g_glowMesh = CreateGlowMesh(256.0f);
     g_rockMesh = CreateGlowMesh(TILE_SIZE);
     g_oxygeniconMesh = Createoxygenicon(oxygeniconwidth, oxygeniconheight);
@@ -1534,24 +1768,28 @@ void Game_Draw(void)
 
     RenderMiningCursor(g_cursorMesh);
     RenderPlayer(g_playerTexture, g_playerMesh);
+
+    RenderRockMiningProgress();
+
     RenderSideBlackout(g_leftBlackoutMesh, g_rightBlackoutMesh);
     RenderSafeZone(g_safezoneBorderMesh);
 
-    if (g_mapiconMesh)
-        Rendermapicon(g_mapiconTexture, g_mapiconMesh, mapiconwidth, mapiconheight);
-    if (g_oxygeniconMesh)
-        Renderoxygenicon(g_oxygeniconTexture, g_oxygeniconMesh, oxygeniconwidth, oxygeniconheight);
-    if (g_sanityiconMesh)
-        Rendersanityicon(g_sanityiconTexture, g_sanityiconMesh, sanityiconwidth, sanityiconheight);
-    if (g_bouldericonMesh)
-        Renderbouldericon(g_bouldericonTexture, g_bouldericonMesh, bouldericonwidth, bouldericonheight);
-
     if (!shop_is_active)
     {
+        if (g_mapiconMesh)
+            Rendermapicon(g_mapiconTexture, g_mapiconMesh, mapiconwidth, mapiconheight);
+        if (g_oxygeniconMesh)
+            Renderoxygenicon(g_oxygeniconTexture, g_oxygeniconMesh, oxygeniconwidth, oxygeniconheight);
+        if (g_sanityiconMesh)
+            Rendersanityicon(g_sanityiconTexture, g_sanityiconMesh, sanityiconwidth, sanityiconheight);
+        if (g_bouldericonMesh)
+            Renderbouldericon(g_bouldericonTexture, g_bouldericonMesh, bouldericonwidth, bouldericonheight);
+
         RenderShopTrigger(g_shopTriggerMesh);
         RenderShopPrompt(g_font_id);
 
         RenderOxygenUI(g_font_id);
+        RenderRockCountUI(g_font_id);
     }
     else  // shop_is_active == 1
     {

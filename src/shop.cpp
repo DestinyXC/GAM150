@@ -113,31 +113,147 @@ AEGfxVertexList* CreateUpgradeBoxBorderMesh(float width, float height, float thi
 }
 
 // ---------------------------------------------------------------------------
-// UPGRADE FUNCTIONS
+// COST FUNCTIONS
+// ---------------------------------------------------------------------------
+
+int GetPickUpgradeCost()
+{
+    switch (pick_upgrade_level)
+    {
+    case 0: return 1;
+    case 1: return 2;
+    case 2: return 3;
+    case 3: return 120;
+    default: return 999;
+    }
+}
+
+int GetOxygenUpgradeCost()
+{
+    switch (oxygen_upgrade_level)
+    {
+    case 0: return 1;
+    case 1: return 2;
+    case 2: return 3;
+    case 3: return 100;
+    default: return 999;
+    }
+}
+
+int GetSanityUpgradeCost()
+{
+    switch (sanity_upgrade_level)
+    {
+    case 0: return 20;
+    case 1: return 40;
+    case 2: return 80;
+    default: return 999;
+    }
+}
+
+int GetTorchUpgradeCost()
+{
+    switch (torch_upgrade_level)
+    {
+    case 0: return 12;
+    case 1: return 24;
+    case 2: return 48;
+    default: return 999;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// UPGRADE FUNCTIONS (WITH ROCK CURRENCY CHECK)
 // ---------------------------------------------------------------------------
 
 void PickUpgrade()
 {
-    pick_upgrade_level++;
-    printf("Pick/Shovel upgraded to level %d!\n", pick_upgrade_level);
+    int cost = GetPickUpgradeCost();
+
+    if (rocks_mined >= cost && pick_upgrade_level < 4)
+    {
+        rocks_mined -= cost;
+        pick_upgrade_level++;
+
+        // Update mining speed
+        switch (pick_upgrade_level)
+        {
+        case 1: rock_mining_duration = 1.5f; break;
+        case 2: rock_mining_duration = 1.0f; break;
+        case 3: rock_mining_duration = 0.5f; break;
+        case 4: rock_mining_duration = 0.25f; break;
+        }
+
+        printf("Pick upgraded to level %d! (Cost: %d rocks)\n", pick_upgrade_level, cost);
+    }
+    else if (rocks_mined < cost)
+    {
+        printf("Not enough rocks! Need %d, have %d\n", cost, rocks_mined);
+    }
+    else
+    {
+        printf("Pick already at max level!\n");
+    }
 }
 
 void OxygenUpgrade()
 {
-    oxygen_upgrade_level++;
-    printf("Oxygen upgraded to level %d!\n", oxygen_upgrade_level);
+    int cost = GetOxygenUpgradeCost();
+
+    if (rocks_mined >= cost && oxygen_upgrade_level < 4)
+    {
+        rocks_mined -= cost;
+        oxygen_upgrade_level++;
+        printf("Oxygen upgraded to level %d! (Cost: %d rocks)\n", oxygen_upgrade_level, cost);
+    }
+    else if (rocks_mined < cost)
+    {
+        printf("Not enough rocks! Need %d, have %d\n", cost, rocks_mined);
+    }
+    else
+    {
+        printf("Oxygen already at max level!\n");
+    }
 }
 
 void SanityUpgrade()
 {
-    sanity_upgrade_level++;
-    printf("Sanity upgraded to level %d!\n", sanity_upgrade_level);
+    int cost = GetSanityUpgradeCost();
+
+    if (rocks_mined >= cost && sanity_upgrade_level < 3)
+    {
+        rocks_mined -= cost;
+        sanity_upgrade_level++;
+        printf("Sanity upgraded to level %d! (Cost: %d rocks)\n", sanity_upgrade_level, cost);
+    }
+    else if (rocks_mined < cost)
+    {
+        printf("Not enough rocks! Need %d, have %d\n", cost, rocks_mined);
+    }
+    else
+    {
+        printf("Sanity already at max level!\n");
+    }
 }
 
 void TorchUpgrade()
 {
-    torch_upgrade_level++;
-    printf("Torch/Light upgraded to level %d!\n", torch_upgrade_level);
+    int cost = GetTorchUpgradeCost();
+
+    if (rocks_mined >= cost && torch_upgrade_level < 3)
+    {
+        rocks_mined -= cost;
+        torch_upgrade_level++;
+        printf("Torch upgraded to level %d! (Cost: %d rocks)\n", torch_upgrade_level, cost);
+    }
+    else if (rocks_mined < cost)
+    {
+        printf("Not enough rocks! Need %d, have %d\n", cost, rocks_mined);
+    }
+    else
+    {
+        printf("Torch already at max level!\n");
+    }
 }
 
 // Helper function to check if mouse is inside a box
@@ -236,6 +352,12 @@ void Shop_Draw()
     float box3_x = start_x + (upgrade_box_width + upgrade_box_spacing) * 2;
     float box4_x = start_x + (upgrade_box_width + upgrade_box_spacing) * 3;
 
+    // Get costs for color coding
+    int pick_cost = GetPickUpgradeCost();
+    int oxy_cost = GetOxygenUpgradeCost();
+    int sanity_cost = GetSanityUpgradeCost();
+    int torch_cost = GetTorchUpgradeCost();
+
     // Draw borders
     AEGfxSetRenderMode(AE_GFX_RM_COLOR);
     AEGfxSetBlendMode(AE_GFX_BM_BLEND);
@@ -245,9 +367,13 @@ void Shop_Draw()
     AEMtx33Scale(&scale2, 1.0f, 1.0f);
     AEMtx33Rot(&rotate2, 0.0f);
 
-    // Border 1
-    if (hover_box1) AEGfxSetColorToMultiply(0.0f, 1.0f, 0.0f, 1.0f);
-    else AEGfxSetColorToMultiply(1.0f, 1.0f, 0.0f, 1.0f);
+    // Border 1 - Green if can afford, Red if cannot
+    if (hover_box1)
+        AEGfxSetColorToMultiply(0.0f, 1.0f, 0.0f, 1.0f);
+    else if (rocks_mined >= pick_cost && pick_upgrade_level < 4)
+        AEGfxSetColorToMultiply(1.0f, 1.0f, 0.0f, 1.0f);  // Yellow (can afford)
+    else
+        AEGfxSetColorToMultiply(1.0f, 0.0f, 0.0f, 1.0f);  // Red (cannot afford)
     AEMtx33Trans(&translate2, box1_x, box_y);
     AEMtx33Concat(&transform2, &rotate2, &scale2);
     AEMtx33Concat(&transform2, &translate2, &transform2);
@@ -255,8 +381,12 @@ void Shop_Draw()
     AEGfxMeshDraw(upgradeBoxBorderMesh, AE_GFX_MDM_TRIANGLES);
 
     // Border 2
-    if (hover_box2) AEGfxSetColorToMultiply(0.0f, 1.0f, 0.0f, 1.0f);
-    else AEGfxSetColorToMultiply(1.0f, 1.0f, 0.0f, 1.0f);
+    if (hover_box2)
+        AEGfxSetColorToMultiply(0.0f, 1.0f, 0.0f, 1.0f);
+    else if (rocks_mined >= oxy_cost && oxygen_upgrade_level < 4)
+        AEGfxSetColorToMultiply(1.0f, 1.0f, 0.0f, 1.0f);
+    else
+        AEGfxSetColorToMultiply(1.0f, 0.0f, 0.0f, 1.0f);
     AEMtx33Trans(&translate2, box2_x, box_y);
     AEMtx33Concat(&transform2, &rotate2, &scale2);
     AEMtx33Concat(&transform2, &translate2, &transform2);
@@ -264,8 +394,12 @@ void Shop_Draw()
     AEGfxMeshDraw(upgradeBoxBorderMesh, AE_GFX_MDM_TRIANGLES);
 
     // Border 3
-    if (hover_box3) AEGfxSetColorToMultiply(0.0f, 1.0f, 0.0f, 1.0f);
-    else AEGfxSetColorToMultiply(1.0f, 1.0f, 0.0f, 1.0f);
+    if (hover_box3)
+        AEGfxSetColorToMultiply(0.0f, 1.0f, 0.0f, 1.0f);
+    else if (rocks_mined >= sanity_cost && sanity_upgrade_level < 3)
+        AEGfxSetColorToMultiply(1.0f, 1.0f, 0.0f, 1.0f);
+    else
+        AEGfxSetColorToMultiply(1.0f, 0.0f, 0.0f, 1.0f);
     AEMtx33Trans(&translate2, box3_x, box_y);
     AEMtx33Concat(&transform2, &rotate2, &scale2);
     AEMtx33Concat(&transform2, &translate2, &transform2);
@@ -273,29 +407,43 @@ void Shop_Draw()
     AEGfxMeshDraw(upgradeBoxBorderMesh, AE_GFX_MDM_TRIANGLES);
 
     // Border 4
-    if (hover_box4) AEGfxSetColorToMultiply(0.0f, 1.0f, 0.0f, 1.0f);
-    else AEGfxSetColorToMultiply(1.0f, 1.0f, 0.0f, 1.0f);
+    if (hover_box4)
+        AEGfxSetColorToMultiply(0.0f, 1.0f, 0.0f, 1.0f);
+    else if (rocks_mined >= torch_cost && torch_upgrade_level < 3)
+        AEGfxSetColorToMultiply(1.0f, 1.0f, 0.0f, 1.0f);
+    else
+        AEGfxSetColorToMultiply(1.0f, 0.0f, 0.0f, 1.0f);
     AEMtx33Trans(&translate2, box4_x, box_y);
     AEMtx33Concat(&transform2, &rotate2, &scale2);
     AEMtx33Concat(&transform2, &translate2, &transform2);
     AEGfxSetTransform(transform2.m);
     AEGfxMeshDraw(upgradeBoxBorderMesh, AE_GFX_MDM_TRIANGLES);
 
-    // Display levels
+    // Display levels and costs
     if (shop_font_id >= 0)
     {
-        char level_text[32];
-        sprintf_s(level_text, 32, "Lv %d", pick_upgrade_level);
-        AEGfxPrint(shop_font_id, level_text, -0.67f, -0.22f, 0.8f, 1.0f, 1.0f, 1.0f, 1.0f);
+        // Display current rock count at top
+        char rocks_text[64];
+        sprintf_s(rocks_text, 64, "Rocks: %d", rocks_mined);
+        AEGfxPrint(shop_font_id, rocks_text, -0.2f, -0.85f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
 
-        sprintf_s(level_text, 32, "Lv %d", oxygen_upgrade_level);
-        AEGfxPrint(shop_font_id, level_text, -0.24f, -0.22f, 0.8f, 1.0f, 1.0f, 1.0f, 1.0f);
+        char level_text[64];
 
-        sprintf_s(level_text, 32, "Lv %d", sanity_upgrade_level);
-        AEGfxPrint(shop_font_id, level_text, 0.18f, -0.22, 0.8f, 1.0f, 1.0f, 1.0f, 1.0f);
+        // Box 1
+        sprintf_s(level_text, 64, "Lv %d (Cost:%d)", pick_upgrade_level, pick_cost);
+        AEGfxPrint(shop_font_id, level_text, -0.75f, -0.33f, 0.6f, 1.0f, 1.0f, 1.0f, 1.0f);
 
-        sprintf_s(level_text, 32, "Lv %d", torch_upgrade_level);
-        AEGfxPrint(shop_font_id, level_text, 0.61f, -0.22, 0.8f, 1.0f, 1.0f, 1.0f, 1.0f);
+        // Box 2
+        sprintf_s(level_text, 64, "Lv %d (Cost:%d)", oxygen_upgrade_level, oxy_cost);
+        AEGfxPrint(shop_font_id, level_text, -0.32f, -0.33f, 0.6f, 1.0f, 1.0f, 1.0f, 1.0f);
+
+        // Box 3
+        sprintf_s(level_text, 64, "Lv %d (Cost:%d)", sanity_upgrade_level, sanity_cost);
+        AEGfxPrint(shop_font_id, level_text, 0.10f, -0.33f, 0.6f, 1.0f, 1.0f, 1.0f, 1.0f);
+
+        // Box 4
+        sprintf_s(level_text, 64, "Lv %d (Cost:%d)", torch_upgrade_level, torch_cost);
+        AEGfxPrint(shop_font_id, level_text, 0.53f, -0.33f, 0.6f, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 }
 
