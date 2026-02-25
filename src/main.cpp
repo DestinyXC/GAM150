@@ -8,6 +8,8 @@
 #include "shop.hpp"
 #include <stdio.h>
 #include <time.h>
+#include "enemy.hpp"
+
 
 // ---------------------------------------------------------------------------
 // CONFIGURATION
@@ -1296,6 +1298,25 @@ void RenderMiningCursor(AEGfxVertexList* cursorMesh)
     }
 }
 
+void RenderDepthDisplay(s8 font_id)
+{
+    if (font_id < 0) return;
+
+    AEGfxSetCamPosition(0.0f, 0.0f);
+    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
+    AEGfxSetBlendMode(AE_GFX_BM_BLEND);
+    AEGfxSetTransparency(1.0f);
+
+    char depth_text[32];
+    sprintf_s(depth_text, 32, "DEPTH");
+
+    char depth_num[32];
+    sprintf_s(depth_num, 32, "%dm", depth * 2);
+
+    AEGfxPrint(font_id, depth_text, -0.99f, 0.15f, 0.8f, 0.8f, 0.8f, 0.8f, 1.0f);
+    AEGfxPrint(font_id, depth_num, -0.99f, 0.00f, 1.0f, 1.0f, 1.0f, 0.3f, 1.0f);
+}
+
 void RenderRockMiningProgress()
 {
     // Early exit if not mining a rock
@@ -1677,6 +1698,8 @@ void Game_Init(void)
     GenerateWorld();
     InitializeTorches();
     InitializeRocks();
+    Enemy_Init();
+
 
     // Load textures
     g_tilesetTexture = AEGfxTextureLoad("../Assets/tileset.png");
@@ -1751,6 +1774,7 @@ void Game_Update(void)
     UpdateCamera(dt);
     UpdateOxygenSystem(dt);
     UpdateShopSystem(dt);
+    Enemy_Update(dt, player_x, player_y, &player_x, &player_y);
 }
 
 void Game_Draw(void)
@@ -1768,11 +1792,16 @@ void Game_Draw(void)
 
     RenderMiningCursor(g_cursorMesh);
     RenderPlayer(g_playerTexture, g_playerMesh);
+    //enemy
+    Enemy_Draw(camera_x, camera_y);
+    Enemy_DrawPlayerHP(camera_x, camera_y, player_x, player_y, player_hp);
 
     RenderRockMiningProgress();
 
     RenderSideBlackout(g_leftBlackoutMesh, g_rightBlackoutMesh);
     RenderSafeZone(g_safezoneBorderMesh);
+
+    RenderDepthDisplay(g_font_id);
 
     if (!shop_is_active)
     {
@@ -1837,4 +1866,6 @@ void Game_Kill(void)
 
     // Unload shop system
     Shop_Unload();
+    //Enemy 
+    Enemy_Kill();
 }
