@@ -27,7 +27,7 @@
     <ClCompile Include="..\src\enemy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="pausemenu.cpp">
+    <ClCompile Include="..\src\pausemenu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -41,7 +41,7 @@
     <ClInclude Include="..\src\enemy.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="pausemenu.h">
+    <ClInclude Include="..\src\pausemenu.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

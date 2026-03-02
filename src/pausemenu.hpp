@@ -1,5 +1,6 @@
 #ifndef PAUSEMENU_H
 #define PAUSEMENU_H
+#include "AEEngine.h"
 
 // ---------------------------------------------------------------------------
 // Pause Menu

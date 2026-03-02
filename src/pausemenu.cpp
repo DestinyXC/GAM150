@@ -1,5 +1,5 @@
 #include "AEEngine.h"
-#include "pausemenu.h"
+#include "pausemenu.hpp"
 #include <stdio.h>
 
 // ---------------------------------------------------------------------------
@@ -171,7 +171,7 @@ int PauseMenu_Update()
     pm_quit_hovered = PM_PointInBox(mx, my, 0.0f, PM_QUIT_Y_PX,
         PM_BTN_HALF_W, PM_BTN_HALF_H);
 
-    if (AEInputCheckTriggered(AEVK_ESCAPE))
+    if (AEInputCheckTriggered(AEVK_Q))
         return PAUSE_RESULT_RESUME;
 
     if (AEInputCheckTriggered(AEVK_LBUTTON))
@@ -234,7 +234,7 @@ void PauseMenu_Draw()
             AEGfxPrint(pm_font, buf, -0.25f, PM_QUIT_Y_NORM, 1.5f, 1.0f, 1.0f, 1.0f, 1.0f); // white
 
         // Hint
-        sprintf_s(buf, "ESC to resume");
+        sprintf_s(buf, "Q to resume");
         AEGfxPrint(pm_font, buf, -0.20f, -0.57f, 0.9f, 0.6f, 0.6f, 0.6f, 1.0f);
     }
 }
