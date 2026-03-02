@@ -10,14 +10,14 @@
 // Depth (tile rows below surface row 9) where each type starts spawning
 #define FERAL_SPAWN_DEPTH    20      // rows below surface (~1280 px)
 #define INSANE_SPAWN_DEPTH   45      // rows below surface (~2880 px)
-#define MOLE_SPAWN_DEPTH     60      // rows below surface (~3840 px)
+#define MOLE_SPAWN_DEPTH     65     // rows below surface (~3840 px)
 
 #define ENEMY_SPAWN_CHANCE   0.35f
 
 #define ENEMY_WIDTH          90.0f
 #define ENEMY_HEIGHT         90.0f
 
-#define ENEMY_SPEED_FERAL    2.0f
+#define ENEMY_SPEED_FERAL    3.0f
 #define ENEMY_SPEED_INSANE   4.0f    
 #define ENEMY_SPEED_MOLE     4.0f    
 
@@ -29,7 +29,7 @@
 // Damage per second while touching player
 #define DAMAGE_FERAL          5.0f
 #define DAMAGE_INSANE        10.0f
-#define DAMAGE_MOLE          15.0f   // Highest damage 
+#define DAMAGE_MOLE          12.0f   // Highest damage 
 
 #define PLAYER_MAX_HP        100.0f
 #define CIRCLE_SEGMENTS      64
@@ -74,8 +74,8 @@ void Enemy_Update(float dt,
     float px, float py,
     float* out_px, float* out_py);
 void Enemy_Draw(float camera_x, float camera_y);
-void Enemy_DrawPlayerHP(float camera_x, float camera_y,
-    float px, float py, float hp);
+//void Enemy_DrawPlayerHP(float camera_x, float camera_y,
+//    float px, float py, float hp);
 void Enemy_Kill();
 
 #endif // ENEMY_HPP

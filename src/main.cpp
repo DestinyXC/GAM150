@@ -1603,7 +1603,62 @@ void RenderRockCountUI(s8 font_id)
     AEGfxPrint(font_id, text, 0.35f, -0.95f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
 }
 
+void RenderSanityUI(s8 font_id)
+{
+    if (font_id < 0) return;
 
+    AEGfxSetCamPosition(0.0f, 0.0f);
+    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
+    AEGfxSetBlendMode(AE_GFX_BM_BLEND);
+    AEGfxSetTransparency(1.0f);
+    AEGfxTextureSet(NULL, 0, 0);
+
+    float frac = player_hp / 100.0f;
+    if (frac < 0.0f) frac = 0.0f;
+    if (frac > 1.0f) frac = 1.0f;
+
+    const float BORDER = 2.0f;
+    const float BAR_W = 120.0f;
+    const float BAR_H = 22.0f;
+    float bx = 460.0f;   //  right 
+    float by = -415.0f;  //  lower
+  
+
+    AEMtx33 t;
+
+    // White border
+    AEGfxSetColorToMultiply(1, 1, 1, 1);
+    AEGfxSetColorToAdd(0, 0, 0, 0);
+    AEMtx33Scale(&t, BAR_W + BORDER * 2, BAR_H + BORDER * 2);
+    AEMtx33Trans(&t, bx, by);
+    AEGfxSetTransform(t.m);
+    AEGfxMeshDraw(g_cursorMesh, AE_GFX_MDM_TRIANGLES);
+
+    // Dark background
+    AEGfxSetColorToMultiply(0.13f, 0.13f, 0.13f, 1);
+    AEMtx33Scale(&t, BAR_W, BAR_H);
+    AEMtx33Trans(&t, bx, by);
+    AEGfxSetTransform(t.m);
+    AEGfxMeshDraw(g_cursorMesh, AE_GFX_MDM_TRIANGLES);
+
+    // Coloured fill
+    float fill_w = BAR_W * frac;
+    if (fill_w > 1.0f)
+    {
+        if (frac > 0.6f) AEGfxSetColorToMultiply(0.0f, 1.0f, 0.0f, 1.0f);  // green
+        else if (frac > 0.3f) AEGfxSetColorToMultiply(1.0f, 1.0f, 0.0f, 1.0f);  // yellow
+        else                  AEGfxSetColorToMultiply(1.0f, 0.0f, 0.0f, 1.0f);  // red
+
+        float fill_cx = (bx - BAR_W * 0.5f) + fill_w * 0.5f;
+
+        AEMtx33 s, tr, m;
+        AEMtx33Scale(&s, fill_w, BAR_H);
+        AEMtx33Trans(&tr, fill_cx, by);
+        AEMtx33Concat(&m, &tr, &s);
+        AEGfxSetTransform(m.m);
+        AEGfxMeshDraw(g_cursorMesh, AE_GFX_MDM_TRIANGLES);
+    }
+}
 
 
 
@@ -1794,7 +1849,7 @@ void Game_Draw(void)
     RenderPlayer(g_playerTexture, g_playerMesh);
     //enemy
     Enemy_Draw(camera_x, camera_y);
-    Enemy_DrawPlayerHP(camera_x, camera_y, player_x, player_y, player_hp);
+    //Enemy_DrawPlayerHP(camera_x, camera_y, player_x, player_y, player_hp);
 
     RenderRockMiningProgress();
 
@@ -1819,6 +1874,7 @@ void Game_Draw(void)
 
         RenderOxygenUI(g_font_id);
         RenderRockCountUI(g_font_id);
+        RenderSanityUI(g_font_id);
     }
     else  // shop_is_active == 1
     {

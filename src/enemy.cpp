@@ -455,54 +455,6 @@ void Enemy_Draw(float camera_x, float camera_y)
     }
 }
 
-// ENEMY_DRAW_PLAYER_HP
-// Health bar above player. Green -> Yellow -> Red as HP falls.
-
-void Enemy_DrawPlayerHP(float camera_x, float camera_y,
-    float px, float py, float hp)
-{
-    if (hp >= PLAYER_MAX_HP) return;
-    if (!g_hpBgMesh || !g_hpFgMesh) return;
-
-    AEGfxSetCamPosition(camera_x, camera_y);
-    AEGfxSetRenderMode(AE_GFX_RM_COLOR);
-    AEGfxSetBlendMode(AE_GFX_BM_BLEND);
-    AEGfxSetTransparency(1.0f);
-    AEGfxSetColorToAdd(0, 0, 0, 0);
-
-    const float BAR_W = 70.0f;
-    const float BAR_H = 10.0f;
-    const float OFFSET = 55.0f;   // above player centre
-    const float BORDER = 2.0f;
-
-    float bx = px;
-    float by = py + OFFSET;
-
-    // White border
-    AEGfxSetColorToMultiply(1, 1, 1, 1);
-    DrawRect(g_hpBgMesh, bx, by, BAR_W + BORDER * 2, BAR_H + BORDER * 2);
-
-    // Dark background
-    AEGfxSetColorToMultiply(0.13f, 0.13f, 0.13f, 1);
-    DrawRect(g_hpBgMesh, bx, by, BAR_W, BAR_H);
-
-    // Coloured fill - green > 60%, yellow > 30%, red otherwise
-    float frac = hp / PLAYER_MAX_HP;
-    if (frac < 0.0f) frac = 0.0f;
-    if (frac > 1.0f) frac = 1.0f;
-
-    float fill_w = BAR_W * frac;
-    if (fill_w > 1.0f)
-    {
-        if (frac > 0.6f) AEGfxSetColorToMultiply(0.2f, 0.85f, 0.2f, 1);   // green
-        else if (frac > 0.3f) AEGfxSetColorToMultiply(0.9f, 0.80f, 0.1f, 1);   // yellow
-        else                  AEGfxSetColorToMultiply(0.9f, 0.15f, 0.15f, 1);  // red
-
-        float fill_cx = (bx - BAR_W * 0.5f) + fill_w * 0.5f;
-        DrawRect(g_hpFgMesh, fill_cx, by, fill_w, BAR_H);
-    }
-}
-
 // ENEMY_KILL
 
 void Enemy_Kill()
