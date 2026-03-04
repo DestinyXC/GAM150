@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "enemy.hpp"
+#include "pausemenu.hpp"
 
 
 // ---------------------------------------------------------------------------
@@ -1811,6 +1812,9 @@ void Game_Init(void)
     // Load shop system (textures, meshes, font)
     Shop_Load();
 
+    //pause menu
+    PauseMenu_Load(g_font_id);
+
     // Set initial player position
     player_x = 0.0f;
     player_y = (5 * TILE_SIZE) - (MAP_HEIGHT * TILE_SIZE / 2.0f) - 100.0f;
@@ -1922,6 +1926,10 @@ void Game_Kill(void)
 
     // Unload shop system
     Shop_Unload();
+
+    //unload pausemenu
+    PauseMenu_Unload();
+
     //Enemy 
     Enemy_Kill();
 }

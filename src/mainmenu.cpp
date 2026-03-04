@@ -6,6 +6,7 @@
 #include "GameStates.h"
 #include <string>
 #include <iostream>
+#include "pausemenu.hpp"
 
 
 
@@ -596,10 +597,30 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 				Game_Kill();                        // free all gameplay textures/meshes
 				currentState = GS_MAINMENU;
 			}
+			else if (pause_is_active)
+			{
+				int result = PauseMenu_Update();
+				Game_Draw();
+				PauseMenu_Draw();
+				if (result == PAUSE_RESULT_RESUME)
+					pause_is_active = 0;
+				else if (result == PAUSE_RESULT_QUIT)
+				{
+					pause_is_active = 0;
+					Game_Kill();
+					currentState = GS_MAINMENU;
+				}
+			}
 			else
 			{
-				Game_Update();                      // physics, mining, camera, oxygen, shop …
-				Game_Draw();                        // render the whole mining world
+				if (AEInputCheckTriggered(AEVK_Q))
+					pause_is_active = 1;
+				else
+				{
+
+					Game_Update();                      // physics, mining, camera, oxygen, shop …
+					Game_Draw();                        // render the whole mining world
+				}
 			}
 		}
 		// ============== CREDITS STATE ==============
