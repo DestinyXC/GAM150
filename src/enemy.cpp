@@ -204,7 +204,7 @@ void Enemy_Init()
     }
 
     //  Load Mole texture 
-    g_moleTex = AEGfxTextureLoad("../Assets/enemy_mole.png");
+    g_moleTex = AEGfxTextureLoad("../Assets/enemy_mole_test.png");
     if (g_moleTex)
     {
         g_moleTexMesh = MakeTexRect(ENEMY_WIDTH, ENEMY_HEIGHT);

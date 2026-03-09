@@ -11,7 +11,18 @@
 #include "enemy.hpp"
 #include "pausemenu.hpp"
 
+// Audio
+static AEAudio g_miningSound;
+static AEAudioGroup g_sfxGroup;
+static int g_is_playing_mining = 0;  // track if sound is playing
 
+// BGM  ? ADD THESE
+static AEAudio g_bgmSound;
+static AEAudioGroup g_bgmGroup;
+
+static AEAudio g_enemyZoneSound;
+static AEAudioGroup g_enemyZoneGroup;
+static int g_is_playing_enemyzone = 0;
 // ---------------------------------------------------------------------------
 // CONFIGURATION
 
@@ -780,7 +791,13 @@ void UpdateMining(float dt)
     if (AEInputCheckCurr(AEVK_LBUTTON))
     {
         if (can_mine_rock)
-        {
+        {    
+            // Play mining sound if not already playing
+            if (!g_is_playing_mining)
+            {
+                AEAudioPlay(g_miningSound, g_sfxGroup, 0.7f, 1.0f, -1);
+                g_is_playing_mining = 1;
+            }
             // Mining a rock
             if (current_mining_rock != target_rock)
             {
@@ -809,6 +826,13 @@ void UpdateMining(float dt)
             // Not mining anything
             current_mining_rock = -1;
             rock_mining_timer = 0.0f;
+
+            // Stop mining sound
+            if (g_is_playing_mining)
+            {
+                AEAudioStopGroup(g_sfxGroup);
+                g_is_playing_mining = 0;
+            }
         }
     }
     else
@@ -1822,6 +1846,48 @@ void Game_Init(void)
     // Reset oxygen
     oxygen_percentage = 100.0f;
     oxygen_max = 100.0f;
+
+    // Load mining sound
+    g_miningSound = AEAudioLoadSound("../Assets/mining_sound.mp3");
+    g_sfxGroup = AEAudioCreateGroup();
+
+    // Load and play BGM  ? ADD THESE
+    g_bgmSound = AEAudioLoadMusic("../Assets/background_sound.mp3");
+    g_bgmGroup = AEAudioCreateGroup();
+    AEAudioPlay(g_bgmSound, g_bgmGroup, 0.5f, 1.0f, -1);  // 50% volume and loop forever
+
+    g_enemyZoneSound = AEAudioLoadMusic("../Assets/Enemy_zone_sound.mp3");
+    g_enemyZoneGroup = AEAudioCreateGroup();
+
+}
+
+void UpdateEnemyZoneAudio()
+{
+    // Check if ANY enemy is currently chasing the player
+    int any_enemy_chasing = 0;
+    for (int i = 0; i < enemy_count; i++)
+    {
+        if (enemies[i].active && enemies[i].is_chasing)
+        {
+            any_enemy_chasing = 1;
+            break;
+        }
+    }
+
+    if (any_enemy_chasing && !g_is_playing_enemyzone)
+    {
+        // Enemy detected player - switch to enemy music
+        AEAudioStopGroup(g_bgmGroup);
+        AEAudioPlay(g_enemyZoneSound, g_enemyZoneGroup, 0.6f, 1.0f, -1);
+        g_is_playing_enemyzone = 1;
+    }
+    else if (!any_enemy_chasing && g_is_playing_enemyzone)
+    {
+        // No enemy chasing - stop enemy music, resume BGM
+        AEAudioStopGroup(g_enemyZoneGroup);
+        g_is_playing_enemyzone = 0;
+        AEAudioPlay(g_bgmSound, g_bgmGroup, 0.5f, 1.0f, -1);
+    }
 }
 
 void Game_Update(void)
@@ -1834,6 +1900,8 @@ void Game_Update(void)
     UpdateOxygenSystem(dt);
     UpdateShopSystem(dt);
     Enemy_Update(dt, player_x, player_y, &player_x, &player_y);
+
+    UpdateEnemyZoneAudio();
 }
 
 void Game_Draw(void)
@@ -1932,4 +2000,9 @@ void Game_Kill(void)
 
     //Enemy 
     Enemy_Kill();
+
+
+    AEAudioStopGroup(g_sfxGroup);
+    AEAudioStopGroup(g_bgmGroup); 
+    AEAudioStopGroup(g_enemyZoneGroup);
 }
