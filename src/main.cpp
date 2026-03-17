@@ -1858,7 +1858,7 @@ void Game_Draw(void)
     //Enemy_DrawPlayerHP(camera_x, camera_y, player_x, player_y, player_hp);
 
     //draw light
-    LightSystem_DrawDarkness(camera_x, camera_y, player_x, player_y);
+    //LightSystem_DrawDarkness(camera_x, camera_y, player_x, player_y);
     LightSystem_DrawTorch(camera_x, camera_y, player_x, player_y, TORCH_RADIUS_DEFAULT);
 
     RenderRockMiningProgress();

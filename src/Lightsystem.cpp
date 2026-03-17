@@ -82,8 +82,8 @@ static AEGfxVertexList* MakeTorchRing(float inner_r, float outer_r,
 {
     // Encode black with per-vertex alpha into ARGB unsigned int
     // AE vertex colour: 0xAARRGGBB
-    unsigned int col_inner = (unsigned int)(inner_a * 255.0f) << 24; // transparent black
-    unsigned int col_outer = (unsigned int)(outer_a * 255.0f) << 24; // opaque black
+    unsigned int col_inner = (unsigned int)(inner_a * 255.0f) << 24 | 0x00FFFF00; // transparent yellow
+    unsigned int col_outer = (unsigned int)(outer_a * 255.0f) << 24 | 0x00FFFF00; // opaque yellow
 
     // For the very centre, clamp to fully transparent
     if (inner_a <= 0.0f) col_inner = 0x00000000;
