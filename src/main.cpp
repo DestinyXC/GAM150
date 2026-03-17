@@ -10,6 +10,7 @@
 #include <time.h>
 #include "enemy.hpp"
 #include "pausemenu.hpp"
+#include "losescreen.hpp"
 
 // Audio
 static AEAudio g_miningSound;
@@ -1839,6 +1840,9 @@ void Game_Init(void)
     //pause menu
     PauseMenu_Load(g_font_id);
 
+    //lose screen
+    LoseScreen_Load(g_font_id);
+
     // Set initial player position
     player_x = 0.0f;
     player_y = (5 * TILE_SIZE) - (MAP_HEIGHT * TILE_SIZE / 2.0f) - 100.0f;
@@ -1894,14 +1898,28 @@ void Game_Update(void)
 {
     float dt = AEFrameRateControllerGetFrameTime();
 
+    // Lose screen blocks all gameplay while active
+    if (lose_screen_is_active)
+    {
+        LoseScreen_Update();
+        return;
+    }
+
+    // Detect death before Enemy_Update resets the flag
+    if (player_is_dead && !lose_screen_is_active)
+    {
+        LoseScreen_Trigger((LoseKillerType)(int)last_killer_type);
+        player_is_dead = 0;
+        printf("DEBUG: player_is_dead=%d  last_killer_type=%d\n", player_is_dead, (int)last_killer_type);
+        return;  // skip this frame's updates, lose screen takes over next frame
+    }
+
     UpdatePhysics(dt);
     UpdateMining(dt);
     UpdateCamera(dt);
     UpdateOxygenSystem(dt);
     UpdateShopSystem(dt);
     Enemy_Update(dt, player_x, player_y, &player_x, &player_y);
-
-    UpdateEnemyZoneAudio();
 }
 
 void Game_Draw(void)
@@ -1952,6 +1970,9 @@ void Game_Draw(void)
     {
         Shop_Draw();  // Render the shop UI from shop.cpp
     }
+
+    if (lose_screen_is_active)
+        LoseScreen_Draw();
 }
 
 void Game_Kill(void)
@@ -2001,6 +2022,8 @@ void Game_Kill(void)
     //Enemy 
     Enemy_Kill();
 
+    //lose screen
+    LoseScreen_Unload();
 
     AEAudioStopGroup(g_sfxGroup);
     AEAudioStopGroup(g_bgmGroup); 
