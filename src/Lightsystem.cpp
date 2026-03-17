@@ -82,8 +82,11 @@ static AEGfxVertexList* MakeTorchRing(float inner_r, float outer_r,
 {
     // Encode black with per-vertex alpha into ARGB unsigned int
     // AE vertex colour: 0xAARRGGBB
-    unsigned int col_inner = (unsigned int)(inner_a * 255.0f) << 24;
-    unsigned int col_outer = (unsigned int)(outer_a * 255.0f) << 24;
+    unsigned int col_inner = (unsigned int)(inner_a * 255.0f) << 24; // transparent black
+    unsigned int col_outer = (unsigned int)(outer_a * 255.0f) << 24; // opaque black
+
+    // For the very centre, clamp to fully transparent
+    if (inner_a <= 0.0f) col_inner = 0x00000000;
 
     AEGfxMeshStart();
 
@@ -150,8 +153,8 @@ void LightSystem_Init(void)
 
         // Alpha ramps from 0 (centre, fully transparent) to DARKNESS_ALPHA
         // Use a smoothstep-like curve so the edge is gradual
-        float inner_a = t_inner * t_inner * DARKNESS_ALPHA;
-        float outer_a = t_outer * t_outer * DARKNESS_ALPHA;
+        float inner_a = t_inner * t_inner * t_inner * DARKNESS_ALPHA; // cubic = stays transparent longer
+        float outer_a = t_outer * t_outer * t_outer * DARKNESS_ALPHA;
 
         g_torchRing[r] = MakeTorchRing(inner_r, outer_r, inner_a, outer_a);
 
@@ -197,7 +200,7 @@ void LightSystem_DrawDarkness(float camera_x, float camera_y,
     AEGfxSetRenderMode(AE_GFX_RM_COLOR);
     AEGfxSetBlendMode(AE_GFX_BM_BLEND);
     AEGfxSetTransparency(DARKNESS_ALPHA);
-    AEGfxSetColorToMultiply(0.0f, 0.0f, 0.0f, DARKNESS_ALPHA);
+    AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
     AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
 
     // Map world extents
@@ -249,22 +252,18 @@ void LightSystem_DrawTorch(float camera_x, float camera_y,
     AEGfxSetBlendMode(AE_GFX_BM_BLEND);
     AEGfxSetRenderMode(AE_GFX_RM_COLOR);
     AEGfxSetColorToAdd(0.0f, 0.0f, 0.0f, 0.0f);
+    AEGfxSetColorToMultiply(1.0f, 1.0f, 1.0f, 1.0f);
+    AEGfxSetTransparency(1.0f);
 
     for (int r = 0; r < TORCH_GRADIENT_RINGS; ++r)
     {
         if (!g_torchRing[r]) continue;
 
-        // Scale the normalised ring (0..1) out to actual world radius
         AEMtx33 scale, trans, xf;
         AEMtx33Scale(&scale, torch_radius, torch_radius);
         AEMtx33Trans(&trans, player_x, player_y);
         AEMtx33Concat(&xf, &trans, &scale);
-
         AEGfxSetTransform(xf.m);
-
-        // Use multiply colour to preserve per-vertex alpha baked into the mesh
-        AEGfxSetColorToMultiply(0.0f, 0.0f, 0.0f, 1.0f);
-        AEGfxSetTransparency(1.0f);
 
         AEGfxMeshDraw(g_torchRing[r], AE_GFX_MDM_TRIANGLES);
     }
