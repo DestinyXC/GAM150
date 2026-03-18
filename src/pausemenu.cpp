@@ -222,19 +222,15 @@ void PauseMenu_Draw()
         // Resume
         sprintf_s(buf, "RESUME");
         if (pm_resume_hovered)
-            AEGfxPrint(pm_font, buf, -0.145f, PM_RESUME_Y_NORM, 1.8f, 0.0f, 1.0f, 0.4f, 1.0f); // green
+            AEGfxPrint(pm_font, buf, -0.10f, PM_RESUME_Y_NORM, 1.8f, 0.0f, 1.0f, 0.4f, 1.0f); // green
         else
-            AEGfxPrint(pm_font, buf, -0.13f, PM_RESUME_Y_NORM, 1.5f, 1.0f, 1.0f, 1.0f, 1.0f); // white
+            AEGfxPrint(pm_font, buf, -0.10f, PM_RESUME_Y_NORM, 1.5f, 1.0f, 1.0f, 1.0f, 1.0f); // white
 
         // Quit to Menu
         sprintf_s(buf, "QUIT TO MENU");
         if (pm_quit_hovered)
-            AEGfxPrint(pm_font, buf, -0.28f, PM_QUIT_Y_NORM, 1.8f, 1.0f, 0.3f, 0.3f, 1.0f); // red
+            AEGfxPrint(pm_font, buf, -0.17f, PM_QUIT_Y_NORM, 1.8f, 1.0f, 0.3f, 0.3f, 1.0f); // red
         else
-            AEGfxPrint(pm_font, buf, -0.25f, PM_QUIT_Y_NORM, 1.5f, 1.0f, 1.0f, 1.0f, 1.0f); // white
-
-        // Hint
-        sprintf_s(buf, "Q to resume");
-        AEGfxPrint(pm_font, buf, -0.20f, -0.57f, 0.9f, 0.6f, 0.6f, 0.6f, 1.0f);
+            AEGfxPrint(pm_font, buf, -0.17f, PM_QUIT_Y_NORM, 1.5f, 1.0f, 1.0f, 1.0f, 1.0f); // white
     }
 }
