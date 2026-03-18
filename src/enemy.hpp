@@ -66,6 +66,7 @@ extern Enemy enemies[MAX_ENEMIES];
 extern int   enemy_count;
 extern float player_hp;
 extern int   player_is_dead;
+extern EnemyType last_killer_type;
 
 // PUBLIC FUNCTIONS
 

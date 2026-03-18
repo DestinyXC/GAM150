@@ -9,7 +9,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
-
+#include "losescreen.hpp"
 
 // Extern map helpers from main.cpp
 
@@ -35,6 +35,7 @@ Enemy enemies[MAX_ENEMIES];
 int   enemy_count = 0;
 float player_hp = PLAYER_MAX_HP;
 int   player_is_dead = 0;
+EnemyType last_killer_type = ENEMY_TYPE_FERAL;
 
 // PRIVATE - Meshes & Textures
 
@@ -281,10 +282,14 @@ void Enemy_Update(float dt,
     // Handle respawn frame
     if (player_is_dead)
     {
-        player_is_dead = 0;
-        player_hp = PLAYER_MAX_HP;
-        *out_px = RESPAWN_X;
-        *out_py = RESPAWN_Y;
+        // Only do the actual position reset when the lose screen has finished
+        if (!lose_screen_is_active)
+        {
+            player_is_dead = 0;
+            player_hp = PLAYER_MAX_HP;
+            *out_px = RESPAWN_X;
+            *out_py = RESPAWN_Y;
+        }
         return;
     }
 
@@ -378,8 +383,23 @@ void Enemy_Update(float dt,
     // Death check
     if (player_hp <= 0.0f && !player_is_dead)
     {
-        printf("Player died! Respawning at safe zone.\n");
-        player_is_dead = 1;
+        // This loop MUST be before player_is_dead = 1
+        float closest = 999999.0f;
+        last_killer_type = ENEMY_TYPE_FERAL;
+        for (int k = 0; k < enemy_count; k++)
+        {
+            if (!enemies[k].active || !enemies[k].is_chasing) continue;
+            float kdx = px - enemies[k].x;
+            float kdy = py - enemies[k].y;
+            float kdist = sqrtf(kdx * kdx + kdy * kdy);
+            if (kdist < closest)
+            {
+                closest = kdist;
+                last_killer_type = enemies[k].type;  // set BEFORE player_is_dead
+            }
+        }
+
+        player_is_dead = 1;   // set AFTER the loop
         player_hp = PLAYER_MAX_HP;
         *out_px = RESPAWN_X;
         *out_py = RESPAWN_Y;
