@@ -1843,29 +1843,47 @@ void Game_Draw(void)
     AEGfxSetBackgroundColor(0.0f, 0.0f, 0.0f);
     AEGfxSetCamPosition(camera_x, camera_y);
 
+    // ------------------------------------------------------------------
+    // 1. World - tiles and rocks (bottom layer)
+    // ------------------------------------------------------------------
     if (g_texture_loaded)
         RenderBackground(g_tilesetTexture, g_dirtMesh, g_stoneMesh, g_wallMesh);
 
-    if (g_glowTexture)
-        RenderLighting(g_glowTexture, g_glowMesh);
     if (g_rockTexture)
         RenderRocks(g_rockTexture, g_rockMesh);
 
     RenderMiningCursor(g_cursorMesh);
+
+    // ------------------------------------------------------------------
+    // 2. Darkness overlay drawn over the world
+    // ------------------------------------------------------------------
+    LightSystem_DrawDarkness(camera_x, camera_y, player_x, player_y);
+
+    // ------------------------------------------------------------------
+    // 3. Glow burns through the darkness (BEFORE player and enemies
+    //    so they appear on top of the glow circle)
+    // ------------------------------------------------------------------
+    LightSystem_DrawGlow(camera_x, camera_y,
+        player_x, player_y,
+        TORCH_RADIUS_DEFAULT,
+        NULL, NULL, NULL, 0);
+
+    // ------------------------------------------------------------------
+    // 4. Player and enemies drawn ON TOP of glow
+    // ------------------------------------------------------------------
     RenderPlayer(g_playerTexture, g_playerMesh);
-    //enemy
     Enemy_Draw(camera_x, camera_y);
-    //Enemy_DrawPlayerHP(camera_x, camera_y, player_x, player_y, player_hp);
 
-    //draw light
-    //LightSystem_DrawDarkness(camera_x, camera_y, player_x, player_y);
-    LightSystem_DrawTorch(camera_x, camera_y, player_x, player_y, TORCH_RADIUS_DEFAULT);
-
+    // ------------------------------------------------------------------
+    // 5. World-space UI (progress bar, safe zone, side blackout)
+    // ------------------------------------------------------------------
     RenderRockMiningProgress();
-
     RenderSideBlackout(g_leftBlackoutMesh, g_rightBlackoutMesh);
     RenderSafeZone(g_safezoneBorderMesh);
 
+    // ------------------------------------------------------------------
+    // 6. Screen-space UI (always on top of everything)
+    // ------------------------------------------------------------------
     RenderDepthDisplay(g_font_id);
 
     if (!shop_is_active)
@@ -1886,9 +1904,9 @@ void Game_Draw(void)
         RenderRockCountUI(g_font_id);
         RenderSanityUI(g_font_id);
     }
-    else  // shop_is_active == 1
+    else
     {
-        Shop_Draw();  // Render the shop UI from shop.cpp
+        Shop_Draw();
     }
 }
 
