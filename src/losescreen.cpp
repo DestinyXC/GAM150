@@ -278,7 +278,7 @@ void LoseScreen_Draw()
         // "YOU DIED" - large, centred near the top third
         AEGfxPrint(g_font_id,
             (char*)"YOU DIED",
-            -0.13f, 0.25f,          // x, y in normalised screen coords
+            -0.14f, 0.25f,          // x, y in normalised screen coords
             2.0f,                   // scale
             1.0f, 0.15f, 0.15f, 1.0f);  // RGBA (blood red)
 
@@ -290,7 +290,7 @@ void LoseScreen_Draw()
         };
         AEGfxPrint(g_font_id,
             (char*)killer_names[(int)lose_screen_killer],
-            -0.28f, 0.0f,
+            -0.20f, 0.0f,
             1.2f,
             1.0f, 0.8f, 0.8f, 1.0f);
 
@@ -321,7 +321,7 @@ void LoseScreen_Draw()
 
             AEGfxPrint(g_font_id,
                 prompt,
-                -0.45f, -0.35f,
+                -0.25f, -0.35f,
                 0.85f,
                 0.9f, 0.9f, 0.9f, 1.0f);
         }
