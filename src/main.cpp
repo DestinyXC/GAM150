@@ -10,6 +10,7 @@
 #include <time.h>
 #include "enemy.hpp"
 #include "pausemenu.hpp"
+#include "lightsystem.hpp"
 
 // Audio
 static AEAudio g_miningSound;
@@ -1779,6 +1780,7 @@ void Game_Init(void)
     InitializeTorches();
     InitializeRocks();
     Enemy_Init();
+    LightSystem_Init();
 
 
     // Load textures
@@ -1923,6 +1925,10 @@ void Game_Draw(void)
     Enemy_Draw(camera_x, camera_y);
     //Enemy_DrawPlayerHP(camera_x, camera_y, player_x, player_y, player_hp);
 
+    //draw light
+    //LightSystem_DrawDarkness(camera_x, camera_y, player_x, player_y);
+    LightSystem_DrawTorch(camera_x, camera_y, player_x, player_y, TORCH_RADIUS_DEFAULT);
+
     RenderRockMiningProgress();
 
     RenderSideBlackout(g_leftBlackoutMesh, g_rightBlackoutMesh);
@@ -2002,7 +2008,11 @@ void Game_Kill(void)
     Enemy_Kill();
 
 
+
     AEAudioStopGroup(g_sfxGroup);
     AEAudioStopGroup(g_bgmGroup); 
     AEAudioStopGroup(g_enemyZoneGroup);
+
+    //light
+    LightSystem_Kill();
 }
