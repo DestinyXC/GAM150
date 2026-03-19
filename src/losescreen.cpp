@@ -1,46 +1,33 @@
-// ---------------------------------------------------------------------------
 // losescreen.cpp  -  Per-enemy lose screen for Core Break
-// ---------------------------------------------------------------------------
-//
 // Three separate full-screen images are shown depending on which enemy
 // killed the player:
-//
 //   LOSE_KILLER_FERAL   ->  ../Assets/lose_feral.png
 //   LOSE_KILLER_INSANE  ->  ../Assets/lose_insane.png
 //   LOSE_KILLER_MOLE    ->  ../Assets/lose_mole.png
-//
 // Each image is drawn at full 1600x900 in screen space (camera reset to 0,0).
 // A semi-transparent black rectangle is drawn underneath to dim the world.
 // A short "Press SPACE / ENTER to continue" hint is drawn at the bottom.
-//
 // The screen auto-dismisses after LOSESCREEN_DISPLAY_TIME seconds OR
 // immediately when SPACE, ENTER, or left mouse button is pressed.
-// ---------------------------------------------------------------------------
 
 #include "losescreen.hpp"
 #include "AEEngine.h"
 #include <stdio.h>
 #include <math.h>   // fabsf
 
-// ---------------------------------------------------------------------------
+ 
 // GLOBALS  (declared extern in losescreen.hpp)
-// ---------------------------------------------------------------------------
-
-int            lose_screen_is_active = 0;
+int lose_screen_is_active = 0;
 LoseKillerType lose_screen_killer = LOSE_KILLER_FERAL;
 
-// ---------------------------------------------------------------------------
+ 
 // PRIVATE - state
-// ---------------------------------------------------------------------------
-
 static s8   g_font_id = -1;
 static float g_timer = 0.0f;   // counts UP; screen hides when >= LOSESCREEN_DISPLAY_TIME
 static int   g_dismissed = 0;      // set to 1 the frame the player dismisses
 
-// ---------------------------------------------------------------------------
+ 
 // PRIVATE - resources
-// ---------------------------------------------------------------------------
-
 // Full-screen quad mesh (unit square, scaled at draw time)
 static AEGfxVertexList* g_overlayMesh = NULL;   // solid black rect
 static AEGfxVertexList* g_imageMesh = NULL;   // textured rect for the lose image
@@ -50,10 +37,8 @@ static AEGfxTexture* g_feralTex = NULL;
 static AEGfxTexture* g_insaneTex = NULL;
 static AEGfxTexture* g_moleTex = NULL;
 
-// ---------------------------------------------------------------------------
+ 
 // PRIVATE - mesh builders (identical pattern to the rest of the project)
-// ---------------------------------------------------------------------------
-
 static AEGfxVertexList* MakeSolidRect(float w, float h, unsigned int col)
 {
     float hw = w * 0.5f, hh = h * 0.5f;
@@ -80,9 +65,8 @@ static AEGfxVertexList* MakeTexRect(float w, float h)
     return AEGfxMeshEnd();
 }
 
-// ---------------------------------------------------------------------------
+ 
 // PRIVATE - draw a screen-space rectangle (camera must be at 0,0 first)
-// ---------------------------------------------------------------------------
 static void DrawScreenRect(AEGfxVertexList* mesh,
     float cx, float cy,
     float w, float h)
@@ -95,9 +79,8 @@ static void DrawScreenRect(AEGfxVertexList* mesh,
     AEGfxMeshDraw(mesh, AE_GFX_MDM_TRIANGLES);
 }
 
-// ---------------------------------------------------------------------------
+ 
 // LoseScreen_Load
-// ---------------------------------------------------------------------------
 void LoseScreen_Load(s8 font_id)
 {
     g_font_id = font_id;
@@ -131,9 +114,8 @@ void LoseScreen_Load(s8 font_id)
     printf("LoseScreen_Load: complete.\n");
 }
 
-// ---------------------------------------------------------------------------
+ 
 // LoseScreen_Unload
-// ---------------------------------------------------------------------------
 void LoseScreen_Unload()
 {
     if (g_overlayMesh) { AEGfxMeshFree(g_overlayMesh);  g_overlayMesh = NULL; }
@@ -146,9 +128,8 @@ void LoseScreen_Unload()
     printf("LoseScreen_Unload: all resources freed.\n");
 }
 
-// ---------------------------------------------------------------------------
+ 
 // LoseScreen_Trigger
-// ---------------------------------------------------------------------------
 void LoseScreen_Trigger(LoseKillerType killer)
 {
     if (lose_screen_is_active) return;  // already showing, don't re-trigger
@@ -162,9 +143,8 @@ void LoseScreen_Trigger(LoseKillerType killer)
     printf("LoseScreen_Trigger: killed by %s.\n", names[(int)killer]);
 }
 
-// ---------------------------------------------------------------------------
+ 
 // LoseScreen_Update
-// ---------------------------------------------------------------------------
 int LoseScreen_Update()
 {
     if (!lose_screen_is_active) return LOSE_RESULT_NONE;
@@ -192,9 +172,8 @@ int LoseScreen_Update()
     return LOSE_RESULT_NONE;
 }
 
-// ---------------------------------------------------------------------------
+ 
 // LoseScreen_Draw
-// ---------------------------------------------------------------------------
 void LoseScreen_Draw()
 {
     if (!lose_screen_is_active) return;
@@ -202,9 +181,8 @@ void LoseScreen_Draw()
     // Always draw in screen space - reset camera to origin
     AEGfxSetCamPosition(0.0f, 0.0f);
 
-    // -----------------------------------------------------------------------
+      
     // 1. Semi-transparent black overlay (dims the world behind the image)
-    // -----------------------------------------------------------------------
     AEGfxSetRenderMode(AE_GFX_RM_COLOR);
     AEGfxSetBlendMode(AE_GFX_BM_BLEND);
     AEGfxSetTransparency(LOSESCREEN_OVERLAY_ALPHA);
@@ -214,9 +192,8 @@ void LoseScreen_Draw()
     DrawScreenRect(g_overlayMesh, 0.0f, 0.0f,
         LOSESCREEN_WIDTH, LOSESCREEN_HEIGHT);
 
-    // -----------------------------------------------------------------------
+      
     // 2. Killer-specific lose image (full screen)
-    // -----------------------------------------------------------------------
     AEGfxTexture* tex = NULL;
     switch (lose_screen_killer)
     {
@@ -266,9 +243,8 @@ void LoseScreen_Draw()
             LOSESCREEN_WIDTH, LOSESCREEN_HEIGHT);
     }
 
-    // -----------------------------------------------------------------------
+      
     // 3. Text: enemy name + "YOU DIED" + prompt
-    // -----------------------------------------------------------------------
     if (g_font_id >= 0)
     {
         AEGfxSetRenderMode(AE_GFX_RM_COLOR);
